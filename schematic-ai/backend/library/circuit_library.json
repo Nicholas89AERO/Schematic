@@ -1,0 +1,109 @@
+{
+  "_meta": { "version": "1.0", "description": "Pre-built aerospace circuit templates" },
+  "circuits": [
+    {
+      "id": "circ001",
+      "name": "28VDC Essential Bus Distribution",
+      "category": "power_distribution",
+      "layer": "schematic",
+      "description": "Standard 28VDC essential bus with contactor, current limiter, and distribution to 4 circuit breaker protected loads.",
+      "ata_chapter": "24",
+      "tags": ["power", "28VDC", "distribution", "essential bus"],
+      "components": [
+        { "ref": "K1", "type": "contactor", "description": "Bus Tie Contactor 100A", "suggested_pn": "2400-7G-28VDC" },
+        { "ref": "F1", "type": "fuse", "description": "100A ANL Fuse", "suggested_pn": "ANL-100" },
+        { "ref": "CB1", "type": "circuit_breaker", "description": "7.5A Load 1 CB", "suggested_pn": "LELK111-1REC4-28079-3" },
+        { "ref": "CB2", "type": "circuit_breaker", "description": "7.5A Load 2 CB", "suggested_pn": "LELK111-1REC4-28079-3" },
+        { "ref": "CB3", "type": "circuit_breaker", "description": "15A Load 3 CB", "suggested_pn": "LELK111-1REC4-28079-5" },
+        { "ref": "CB4", "type": "circuit_breaker", "description": "15A Load 4 CB", "suggested_pn": "LELK111-1REC4-28079-5" },
+        { "ref": "GND1", "type": "ground", "description": "Airframe Ground" }
+      ],
+      "notes": "ATA 24-31 essential bus. Contactor K1 closes on battery master. Each load protected by individual CB. Ensure ground return wire gauge matches load current."
+    },
+    {
+      "id": "circ002",
+      "name": "ARINC 429 Transmitter/Receiver Pair",
+      "category": "data_bus",
+      "layer": "schematic",
+      "description": "ARINC 429 unidirectional bus connection from a transmitting LRU to a receiving LRU with proper shielding and termination.",
+      "ata_chapter": "42",
+      "tags": ["ARINC429", "data bus", "avionics", "A429"],
+      "components": [
+        { "ref": "J1", "type": "connector_shell", "description": "LRU-A Output Connector", "suggested_pn": "97-3106A-22-14S" },
+        { "ref": "J2", "type": "connector_shell", "description": "LRU-B Input Connector", "suggested_pn": "97-3106A-22-14S" },
+        { "ref": "SH1", "type": "ground", "description": "Shield Ground (single-point)" }
+      ],
+      "wires": [
+        { "label": "A429-TX-A", "spec": "M27500-22SR2T23", "description": "A429 Data A (HI)" },
+        { "label": "A429-TX-B", "spec": "M27500-22SR2T23", "description": "A429 Data B (LO)" }
+      ],
+      "notes": "Single-ended receiver. Terminate at receiver with 75-86 Ohm differential. Shield grounded at single point (transmitter end). Do not create ground loops."
+    },
+    {
+      "id": "circ003",
+      "name": "E-Stop Safety Circuit (IEC 62061 Cat 3)",
+      "category": "safety",
+      "layer": "schematic",
+      "description": "Dual-channel E-stop with safety relay, monitoring contacts, and forced-guided relay for SIL2/Cat3 compliance.",
+      "ata_chapter": "",
+      "tags": ["e-stop", "safety", "Cat3", "SIL2", "IEC62061"],
+      "components": [
+        { "ref": "S1", "type": "pushbutton_nc", "description": "E-Stop Button CH1 (N/C)" },
+        { "ref": "S2", "type": "pushbutton_nc", "description": "E-Stop Button CH2 (N/C)" },
+        { "ref": "K2", "type": "relay_coil", "description": "Safety Relay CH1" },
+        { "ref": "K3", "type": "relay_coil", "description": "Safety Relay CH2" },
+        { "ref": "K2A", "type": "relay_contact", "description": "K2 N/O Contact — Load Path" },
+        { "ref": "K3A", "type": "relay_contact", "description": "K3 N/O Contact — Load Path" },
+        { "ref": "K2B", "type": "relay_contact", "description": "K2 N/C Monitoring Contact" },
+        { "ref": "K3B", "type": "relay_contact", "description": "K3 N/C Monitoring Contact" }
+      ],
+      "notes": "Dual-channel design for Cat3 / SIL2. Cross-monitoring via K2B/K3B. Both channels must open independently. Annunciate via discrete output to FCC."
+    },
+    {
+      "id": "circ004",
+      "name": "28VDC Battery Charge/Discharge Monitor",
+      "category": "power_management",
+      "layer": "schematic",
+      "description": "Battery monitoring with shunt-based current sensing, voltage divider, and discrete over/under-voltage warning output.",
+      "ata_chapter": "24",
+      "tags": ["battery", "monitoring", "28VDC", "current sensing"],
+      "components": [
+        { "ref": "R1", "type": "sensor", "description": "Current Shunt 500A/50mV" },
+        { "ref": "U1", "type": "plc_block", "description": "Battery Monitor LRU" },
+        { "ref": "CB5", "type": "circuit_breaker", "description": "5A Monitor Supply CB", "suggested_pn": "7277-3-5" }
+      ],
+      "notes": "Shunt R1 in series with battery negative. Monitor LRU reads differential voltage. Discrete output goes LO on fault. Wire shunt sense leads as twisted pair, separate from power."
+    },
+    {
+      "id": "circ005",
+      "name": "3-Phase 115VAC Bus Distribution",
+      "category": "power_distribution",
+      "layer": "schematic",
+      "description": "400Hz 3-phase AC bus with current transformer sensing and 3-pole CB protection for AC loads.",
+      "ata_chapter": "24",
+      "tags": ["115VAC", "400Hz", "3-phase", "AC distribution"],
+      "components": [
+        { "ref": "CB6", "type": "circuit_breaker", "description": "3P 25A AC CB", "suggested_pn": "CB_3P" },
+        { "ref": "T1", "type": "transformer", "description": "CT 100:5A Current Transformer Ph-A" },
+        { "ref": "T2", "type": "transformer", "description": "CT 100:5A Current Transformer Ph-B" },
+        { "ref": "T3", "type": "transformer", "description": "CT 100:5A Current Transformer Ph-C" }
+      ],
+      "notes": "400Hz AC. Phase rotation A-B-C. CT secondary must not be open-circuited under load. CB must break all three phases simultaneously."
+    },
+    {
+      "id": "circ006",
+      "name": "Discrete Input Signal Conditioning",
+      "category": "signal_conditioning",
+      "layer": "schematic",
+      "description": "28VDC discrete input with pull-up resistor, optical isolation, and de-bounce filter for interfacing aircraft-level signals to LRU logic.",
+      "ata_chapter": "31",
+      "tags": ["discrete", "28V", "optical isolation", "signal conditioning"],
+      "components": [
+        { "ref": "R2", "type": "sensor", "description": "10k Pull-up Resistor" },
+        { "ref": "U2", "type": "plc_block", "description": "Opto-Isolator (4N25)" },
+        { "ref": "CB7", "type": "circuit_breaker", "description": "1A Supply CB", "suggested_pn": "7277-3-5" }
+      ],
+      "notes": "28V HI = logic 1. Pull-up to 28VDC. Opto provides galvanic isolation and noise immunity. De-bounce filter: 10ms. Meets DO-160G Section 16."
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "_comment": "DXF block name → ComponentType mapping with pin metadata. Keys are DXF INSERT block names (case-insensitive match). pin_count is the expected number of pins/terminals.",
+  "symbols": {
+    "CB": {
+      "component_type": "circuit_breaker",
+      "description": "Circuit Breaker",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RATING", "VOLTAGE", "MANUFACTURER", "PART_NUMBER"]
+    },
+    "CB_1P": {
+      "component_type": "circuit_breaker",
+      "description": "Circuit Breaker 1-pole",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RATING", "VOLTAGE"]
+    },
+    "CB_2P": {
+      "component_type": "circuit_breaker",
+      "description": "Circuit Breaker 2-pole",
+      "pin_count": 4,
+      "pins": ["1", "2", "3", "4"],
+      "attributes": ["RATING", "VOLTAGE"]
+    },
+    "CB_3P": {
+      "component_type": "circuit_breaker",
+      "description": "Circuit Breaker 3-pole",
+      "pin_count": 6,
+      "pins": ["1", "2", "3", "4", "5", "6"],
+      "attributes": ["RATING", "VOLTAGE"]
+    },
+    "FUSE": {
+      "component_type": "fuse",
+      "description": "Fuse",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RATING", "VOLTAGE", "PART_NUMBER"]
+    },
+    "FUSE_HRC": {
+      "component_type": "fuse",
+      "description": "HRC Fuse",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RATING", "VOLTAGE", "PART_NUMBER"]
+    },
+    "KM": {
+      "component_type": "contactor",
+      "description": "Contactor / Motor Starter",
+      "pin_count": 6,
+      "pins": ["A1", "A2", "1", "2", "3", "4"],
+      "attributes": ["VOLTAGE", "RATING", "MANUFACTURER", "PART_NUMBER"]
+    },
+    "KM_COIL": {
+      "component_type": "contactor",
+      "description": "Contactor Coil",
+      "pin_count": 2,
+      "pins": ["A1", "A2"],
+      "attributes": ["VOLTAGE", "MANUFACTURER"]
+    },
+    "KA_COIL": {
+      "component_type": "relay_coil",
+      "description": "Relay Coil",
+      "pin_count": 2,
+      "pins": ["A1", "A2"],
+      "attributes": ["VOLTAGE", "MANUFACTURER", "PART_NUMBER"]
+    },
+    "KA_NO": {
+      "component_type": "relay_contact",
+      "description": "Relay Contact N/O",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["COIL_REF", "RATING"]
+    },
+    "KA_NC": {
+      "component_type": "relay_contact",
+      "description": "Relay Contact N/C",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["COIL_REF", "RATING"]
+    },
+    "XB_NO": {
+      "component_type": "pushbutton_no",
+      "description": "Pushbutton N/O",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["COLOR", "LEGEND", "PART_NUMBER"]
+    },
+    "XB_NC": {
+      "component_type": "pushbutton_nc",
+      "description": "Pushbutton N/C",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["COLOR", "LEGEND", "PART_NUMBER"]
+    },
+    "TB": {
+      "component_type": "terminal",
+      "description": "Terminal Block",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RATING", "MANUFACTURER"]
+    },
+    "TB_PE": {
+      "component_type": "terminal",
+      "description": "Terminal Block - PE (Earth)",
+      "pin_count": 2,
+      "pins": ["1", "PE"],
+      "attributes": ["RATING"]
+    },
+    "GND": {
+      "component_type": "ground",
+      "description": "Ground / Earth Symbol",
+      "pin_count": 1,
+      "pins": ["1"],
+      "attributes": ["GND_REF", "STUD_LOCATION"]
+    },
+    "GND_CHASSIS": {
+      "component_type": "ground",
+      "description": "Chassis Ground",
+      "pin_count": 1,
+      "pins": ["1"],
+      "attributes": ["GND_REF"]
+    },
+    "CONN_P": {
+      "component_type": "connector_shell",
+      "description": "Connector Plug (male)",
+      "pin_count": 0,
+      "pins": [],
+      "attributes": ["PART_NUMBER", "MATING_REF", "SHELL_CLASS", "INSERT_ARRANGEMENT", "BACKSHELL_PN"]
+    },
+    "CONN_J": {
+      "component_type": "connector_shell",
+      "description": "Connector Jack (female / receptacle)",
+      "pin_count": 0,
+      "pins": [],
+      "attributes": ["PART_NUMBER", "MATING_REF", "SHELL_CLASS", "INSERT_ARRANGEMENT", "BACKSHELL_PN"]
+    },
+    "CONN_CIRC": {
+      "component_type": "connector_shell",
+      "description": "Circular Connector",
+      "pin_count": 0,
+      "pins": [],
+      "attributes": ["PART_NUMBER", "MATING_REF", "INSERT_ARRANGEMENT"]
+    },
+    "CONN_DSUB": {
+      "component_type": "connector_shell",
+      "description": "D-Sub Connector",
+      "pin_count": 0,
+      "pins": [],
+      "attributes": ["PART_NUMBER", "MATING_REF"]
+    },
+    "SENSOR_PT": {
+      "component_type": "sensor",
+      "description": "Temperature Sensor (PT100/PT1000)",
+      "pin_count": 2,
+      "pins": ["1", "2"],
+      "attributes": ["RANGE", "PART_NUMBER"]
+    },
+    "SENSOR_PRESS": {
+      "component_type": "sensor",
+      "description": "Pressure Sensor",
+      "pin_count": 3,
+      "pins": ["+V", "OUT", "GND"],
+      "attributes": ["RANGE", "OUTPUT_TYPE", "PART_NUMBER"]
+    },
+    "MOTOR_M": {
+      "component_type": "motor",
+      "description": "Electric Motor",
+      "pin_count": 3,
+      "pins": ["U", "V", "W"],
+      "attributes": ["POWER_KW", "VOLTAGE", "FREQUENCY", "MANUFACTURER"]
+    },
+    "XFMR": {
+      "component_type": "transformer",
+      "description": "Transformer",
+      "pin_count": 4,
+      "pins": ["L1", "L2", "N1", "N2"],
+      "attributes": ["RATIO", "RATING_VA", "PART_NUMBER"]
+    },
+    "DIODE": {
+      "component_type": "diode",
+      "description": "Diode",
+      "pin_count": 2,
+      "pins": ["A", "K"],
+      "attributes": ["PART_NUMBER", "RATING"]
+    },
+    "ZENER": {
+      "component_type": "diode",
+      "description": "Zener Diode",
+      "pin_count": 2,
+      "pins": ["A", "K"],
+      "attributes": ["VOLTAGE", "PART_NUMBER"]
+    },
+    "PLC": {
+      "component_type": "plc_block",
+      "description": "PLC / Controller Block",
+      "pin_count": 0,
+      "pins": [],
+      "attributes": ["MANUFACTURER", "PART_NUMBER", "FIRMWARE"]
+    },
+    "PLC_DI": {
+      "component_type": "plc_block",
+      "description": "PLC Digital Input Card",
+      "pin_count": 16,
+      "pins": [],
+      "attributes": ["CHANNELS", "VOLTAGE", "PART_NUMBER"]
+    },
+    "PLC_DO": {
+      "component_type": "plc_block",
+      "description": "PLC Digital Output Card",
+      "pin_count": 16,
+      "pins": [],
+      "attributes": ["CHANNELS", "VOLTAGE", "CURRENT", "PART_NUMBER"]
+    },
+    "PLC_AI": {
+      "component_type": "plc_block",
+      "description": "PLC Analog Input Card",
+      "pin_count": 8,
+      "pins": [],
+      "attributes": ["CHANNELS", "RANGE", "RESOLUTION", "PART_NUMBER"]
+    },
+    "PLC_AO": {
+      "component_type": "plc_block",
+      "description": "PLC Analog Output Card",
+      "pin_count": 4,
+      "pins": [],
+      "attributes": ["CHANNELS", "RANGE", "PART_NUMBER"]
+    },
+    "XREF_SHEET": {
+      "component_type": "unknown",
+      "description": "Cross-reference flag to another sheet",
+      "pin_count": 1,
+      "pins": ["1"],
+      "attributes": ["DEST_SHEET", "DEST_ZONE", "SIGNAL_NAME"]
+    }
+  },
+  "layer_names": {
+    "wires": ["WIRE", "WIRE_DC", "WIRE_AC", "WIRE_SIG", "WIRE_GND", "WIRES", "ELEC_WIRE"],
+    "symbols": ["SYMBOL", "SYMBOLS", "COMPONENT", "ELEC_SYM", "ELEC_COMP"],
+    "text": ["TEXT", "ANNOTATION", "LABELS", "ELEC_TEXT"],
+    "connectors": ["CONNECTOR", "CONN", "ELEC_CONN"],
+    "title_block": ["TITLE", "TITLEBLOCK", "TITLE_BLOCK", "BORDER"],
+    "dimensions": ["DIM", "DIMENSION", "DIMS"]
+  },
+  "signal_type_keywords": {
+    "power_dc":     ["28VDC", "28V", "5VDC", "12VDC", "24VDC", "DC BUS", "DC POWER"],
+    "power_ac":     ["115VAC", "28VAC", "AC BUS", "AC POWER", "115V", "400HZ"],
+    "arinc429":     ["ARINC429", "ARINC 429", "A429"],
+    "arinc664":     ["ARINC664", "ARINC 664", "AFDX"],
+    "mil_std_1553": ["MIL-STD-1553", "1553", "MIL1553"],
+    "discrete":     ["DISCRETE", "DSCRT", "LOGIC", "28V DISC"],
+    "analog":       ["ANALOG", "4-20MA", "0-10V", "ANLG"],
+    "rs422":        ["RS422", "RS-422", "RS485", "RS-485"],
+    "can":          ["CAN BUS", "CANBUS", "CAN"],
+    "ground":       ["GND", "GROUND", "CHASSIS GND", "SIGNAL GND"]
+  }
+}
