@@ -550,10 +550,10 @@ function ComplianceTab({ onChipClick }: { onChipClick: (c: string) => void }) {
       `Generated: ${new Date().toISOString()}`,
       '',
       '--- RULES ---',
-      ...state.compliance.rules.map((r: any) =>
-        `[${r.severity?.toUpperCase()}] ${r.rule_id}: ${r.message}` +
+      ...state.compliance.results.map((r) =>
+        `[${r.severity.toUpperCase()}] ${r.rule_id}: ${r.message}` +
         (r.element_ref ? ` (${r.element_ref})` : '') +
-        (r.fix_suggestion ? `\n  Fix: ${r.fix_suggestion}` : '')
+        (r.fix_description ? `\n  Fix: ${r.fix_description}` : '')
       ),
     ].join('\n');
     const blob = new Blob([text], { type: 'text/plain' });

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import (
-    BackgroundTasks, FastAPI, File, Form, HTTPException,
+    APIRouter, BackgroundTasks, FastAPI, File, Form, HTTPException,
     UploadFile, WebSocket, WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,6 +63,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+router = APIRouter()
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
@@ -179,7 +181,7 @@ async def healthz():
 # Parse & Detect endpoints
 # ─────────────────────────────────────────────
 
-@app.post("/detect-layer")
+@router.post("/detect-layer")
 async def detect_layer_endpoint(file: UploadFile = File(...)):
     """Detect which drawing layer a file belongs to without fully parsing it."""
     suffix = Path(file.filename or "").suffix.lower()
@@ -206,7 +208,7 @@ async def detect_layer_endpoint(file: UploadFile = File(...)):
     }
 
 
-@app.post("/parse")
+@router.post("/parse")
 async def parse_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -245,7 +247,7 @@ async def parse_file(
     return {"job_id": job_id, "status": "queued"}
 
 
-@app.get("/parse/{job_id}/status")
+@router.get("/parse/{job_id}/status")
 async def get_parse_status(job_id: str):
     job = _parse_jobs.get(job_id)
     if not job:
@@ -260,7 +262,7 @@ async def get_parse_status(job_id: str):
     }
 
 
-@app.get("/parse/{job_id}/model")
+@router.get("/parse/{job_id}/model")
 async def get_parse_model(job_id: str):
     job = _parse_jobs.get(job_id)
     if not job:
@@ -289,7 +291,7 @@ async def ws_parse_progress(websocket: WebSocket, job_id: str):
 # Project Management endpoints
 # ─────────────────────────────────────────────
 
-@app.get("/project/{project_id}")
+@router.get("/project/{project_id}")
 async def get_project_endpoint(project_id: str):
     project = await _require_project(project_id)
     return model_to_dict(project)
@@ -306,7 +308,7 @@ class NewDrawingRequest(BaseModel):
     drawn_by: str = ""
 
 
-@app.post("/project/new")
+@router.post("/project/new")
 async def create_new_drawing(body: NewDrawingRequest):
     """Create a blank ProjectModel with a single empty sheet for the requested layer."""
     from models.project import (
@@ -365,7 +367,7 @@ class NewFromTemplateRequest(BaseModel):
     properties: Optional[dict] = None  # resolved drawing properties from frontend
 
 
-@app.post("/project/from-template")
+@router.post("/project/from-template")
 async def create_from_template(body: NewFromTemplateRequest):
     """Create a new blank project pre-populated from a drawing template."""
     from models.project import BlockDiagram, SchematicSheet, HarnessSheet, TitleBlock
@@ -443,7 +445,7 @@ class MergeRequest(BaseModel):
     job_id: str  # The parse job whose fragment to merge
 
 
-@app.post("/project/merge")
+@router.post("/project/merge")
 async def merge_fragment(body: MergeRequest):
     """
     Merge a parsed layer fragment into an existing project (or create a new one).
@@ -490,7 +492,7 @@ async def merge_fragment(body: MergeRequest):
     }
 
 
-@app.delete("/project/{project_id}/layer/{layer}")
+@router.delete("/project/{project_id}/layer/{layer}")
 async def clear_layer(project_id: str, layer: str):
     project = await _require_project(project_id)
     try:
@@ -519,7 +521,7 @@ class ExportRequest(BaseModel):
     layer: Optional[str] = None
 
 
-@app.post("/export/dxf")
+@router.post("/export/dxf")
 async def export_dxf(body: ExportRequest):
     project = await _require_project(body.project_id)
     from exporters.dxf_writer import write_dxf
@@ -528,7 +530,7 @@ async def export_dxf(body: ExportRequest):
     return FileResponse(out_path, filename=f"{project.project_number or 'export'}_{layer.value}.dxf")
 
 
-@app.post("/export/pdf")
+@router.post("/export/pdf")
 async def export_pdf(body: ExportRequest):
     project = await _require_project(body.project_id)
     from exporters.pdf_writer import write_pdf
@@ -537,7 +539,7 @@ async def export_pdf(body: ExportRequest):
     return FileResponse(out_path, filename=f"{project.project_number or 'export'}_{layer.value}.pdf")
 
 
-@app.post("/export/wire-list")
+@router.post("/export/wire-list")
 async def export_wire_list(body: ExportRequest):
     project = await _require_project(body.project_id)
     from exporters.l3_harness_writer import write_wire_list_csv
@@ -545,7 +547,7 @@ async def export_wire_list(body: ExportRequest):
     return FileResponse(out_path, filename="wire_list.csv")
 
 
-@app.post("/export/bom")
+@router.post("/export/bom")
 async def export_bom(body: ExportRequest):
     project = await _require_project(body.project_id)
     layer = DrawingLayer(body.layer) if body.layer else DrawingLayer.SCHEMATIC
@@ -559,7 +561,7 @@ class PinTableRequest(BaseModel):
     connector_ref: str
 
 
-@app.post("/export/pin-table")
+@router.post("/export/pin-table")
 async def export_pin_table(body: PinTableRequest):
     project = await _require_project(body.project_id)
     from exporters.l2_schema_writer import write_pin_table_csv
@@ -577,7 +579,7 @@ class AIModifyRequest(BaseModel):
     prompt: str
 
 
-@app.post("/ai/modify")
+@router.post("/ai/modify")
 async def ai_modify(body: AIModifyRequest):
     project = await _require_project(body.project_id)
     from ai.claude_client import modify_project
@@ -601,7 +603,7 @@ class AIGenerateRequest(BaseModel):
     project_id: Optional[str] = None
 
 
-@app.post("/ai/generate")
+@router.post("/ai/generate")
 async def ai_generate(body: AIGenerateRequest):
     from ai.claude_client import generate_fragment
     result = await generate_fragment(body.template, body.parameters, DrawingLayer(body.layer))
@@ -614,7 +616,7 @@ class AIExplainRequest(BaseModel):
     element_id: str
 
 
-@app.post("/ai/explain")
+@router.post("/ai/explain")
 async def ai_explain(body: AIExplainRequest):
     project = await _require_project(body.project_id)
     from ai.claude_client import explain_element
@@ -628,7 +630,7 @@ class AIPropagateRequest(BaseModel):
     changeset: dict
 
 
-@app.post("/ai/propagate")
+@router.post("/ai/propagate")
 async def ai_propagate(body: AIPropagateRequest):
     project = await _require_project(body.project_id)
     from ai.claude_client import propagate_changes
@@ -645,7 +647,7 @@ class ComplianceCheckRequest(BaseModel):
     layer: Optional[str] = None
 
 
-@app.post("/compliance/check")
+@router.post("/compliance/check")
 async def compliance_check(body: ComplianceCheckRequest):
     project = await _require_project(body.project_id)
     from compliance.checker import run_compliance
@@ -659,7 +661,7 @@ class ComplianceFixRequest(BaseModel):
     rule_id: str
 
 
-@app.post("/compliance/fix")
+@router.post("/compliance/fix")
 async def compliance_fix(body: ComplianceFixRequest):
     project = await _require_project(body.project_id)
     from ai.claude_client import fix_compliance_rule
@@ -672,7 +674,7 @@ class ConsistencyRequest(BaseModel):
     project_id: str
 
 
-@app.post("/validate/consistency")
+@router.post("/validate/consistency")
 async def validate_consistency(body: ConsistencyRequest):
     project = await _require_project(body.project_id)
     from validators.consistency import run_consistency_checks
@@ -719,7 +721,7 @@ def _write_library(lib_type: str, data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
-@app.get("/library/{lib_type}")
+@router.get("/library/{lib_type}")
 async def get_library(lib_type: str):
     """Return all entries in the specified library."""
     data = _read_library(lib_type)
@@ -731,7 +733,7 @@ async def get_library(lib_type: str):
     return {"lib_type": lib_type, "items": items, "count": len(items)}
 
 
-@app.post("/library/{lib_type}")
+@router.post("/library/{lib_type}")
 async def add_library_item(lib_type: str, item: dict):
     """Add a new entry to a library. Auto-assigns an id if missing."""
     if lib_type not in _LIBRARY_FILES:
@@ -753,7 +755,7 @@ async def add_library_item(lib_type: str, item: dict):
     return {"added": item}
 
 
-@app.put("/library/{lib_type}/{item_id}")
+@router.put("/library/{lib_type}/{item_id}")
 async def update_library_item(lib_type: str, item_id: str, item: dict):
     """Update an existing library entry by id."""
     if lib_type not in _LIBRARY_FILES:
@@ -779,7 +781,7 @@ async def update_library_item(lib_type: str, item_id: str, item: dict):
     return {"updated": item}
 
 
-@app.delete("/library/{lib_type}/{item_id}")
+@router.delete("/library/{lib_type}/{item_id}")
 async def delete_library_item(lib_type: str, item_id: str):
     """Delete a library entry by id."""
     if lib_type not in _LIBRARY_FILES:
@@ -800,3 +802,11 @@ async def delete_library_item(lib_type: str, item_id: str):
 
     _write_library(lib_type, data)
     return {"deleted": item_id}
+
+
+app.include_router(router, prefix="/api")
+
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
