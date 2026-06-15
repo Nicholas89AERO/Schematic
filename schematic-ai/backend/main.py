@@ -16,11 +16,10 @@ Endpoints:
 
 from __future__ import annotations
 
-import asyncio
-import dataclasses
 import json
 import os
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
@@ -29,26 +28,40 @@ from fastapi import (
     UploadFile, WebSocket, WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from .models.project import DrawingLayer, ProjectModel
-from .parsers.layer_detector import detect_layer
-from .parsers.dxf_parser import parse_dxf
-from .parsers.pdf_parser import parse_pdf
-from .linkers.cross_ref_builder import build_cross_references
+from database import get_project, init_db, save_project
+from linkers.cross_ref_builder import build_cross_references
+from models.project import DrawingLayer, ProjectModel
+from parsers.dxf_parser import parse_dxf
+from parsers.layer_detector import detect_layer
+from parsers.pdf_parser import parse_pdf
+from serialization import (
+    dict_to_block_diagram,
+    dict_to_harness_sheet,
+    dict_to_schematic_sheet,
+    model_to_dict,
+)
 
 # ─────────────────────────────────────────────
 # App setup
 # ─────────────────────────────────────────────
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
 app = FastAPI(
     title="SchematicAI",
     description="Aerospace electrical drawing intelligence platform",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
@@ -68,8 +81,6 @@ MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_MB", "50")) * 1024 * 1024
 
 # parse jobs:  job_id → { status, layer, warnings, model_fragment, detection }
 _parse_jobs: dict[str, dict] = {}
-# projects:    project_id → ProjectModel
-_projects: dict[str, ProjectModel] = {}
 # ws connections: job_id → list[WebSocket]
 _ws_clients: dict[str, list[WebSocket]] = {}
 
@@ -78,20 +89,14 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ─────────────────────────────────────────────
-# Serialisation helper
+# Project helpers
 # ─────────────────────────────────────────────
 
-def _model_to_dict(obj: Any) -> Any:
-    """Recursively convert dataclasses and enums to JSON-serialisable dicts."""
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return {k: _model_to_dict(v) for k, v in dataclasses.asdict(obj).items()}
-    if isinstance(obj, list):
-        return [_model_to_dict(i) for i in obj]
-    if isinstance(obj, dict):
-        return {k: _model_to_dict(v) for k, v in obj.items()}
-    if hasattr(obj, "value"):  # Enum
-        return obj.value
-    return obj
+async def _require_project(project_id: str) -> ProjectModel:
+    project = await get_project(project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    return project
 
 
 async def _broadcast(job_id: str, message: dict) -> None:
@@ -137,7 +142,7 @@ async def _run_parse_job(job_id: str, file_path: Path, layer_hint: Optional[str]
         job["status"]       = "complete"
         job["layer"]        = detected_layer.value
         job["warnings"]     = warnings
-        job["model_fragment"] = _model_to_dict(fragment)
+        job["model_fragment"] = model_to_dict(fragment)
         job["detection"]    = {
             "detected_layer": detection.detected_layer.value,
             "confidence":     detection.confidence,
@@ -285,11 +290,9 @@ async def ws_parse_progress(websocket: WebSocket, job_id: str):
 # ─────────────────────────────────────────────
 
 @app.get("/project/{project_id}")
-async def get_project(project_id: str):
-    project = _projects.get(project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    return _model_to_dict(project)
+async def get_project_endpoint(project_id: str):
+    project = await _require_project(project_id)
+    return model_to_dict(project)
 
 
 class NewDrawingRequest(BaseModel):
@@ -306,7 +309,7 @@ class NewDrawingRequest(BaseModel):
 @app.post("/project/new")
 async def create_new_drawing(body: NewDrawingRequest):
     """Create a blank ProjectModel with a single empty sheet for the requested layer."""
-    from .models.project import (
+    from models.project import (
         BlockDiagram, SchematicSheet, HarnessSheet, TitleBlock
     )
     try:
@@ -338,7 +341,7 @@ async def create_new_drawing(body: NewDrawingRequest):
     elif layer == DrawingLayer.HARNESS:
         project.harness_sheets.append(HarnessSheet(number=1, title=body.name))
 
-    _projects[project.project_id] = project
+    await save_project(project)
 
     sheet_count = (
         len(project.block_diagrams) if layer == DrawingLayer.BLOCK_DIAGRAM else
@@ -346,7 +349,7 @@ async def create_new_drawing(body: NewDrawingRequest):
         len(project.harness_sheets)
     )
 
-    project_dict = _model_to_dict(project)
+    project_dict = model_to_dict(project)
     project_dict["layer"] = layer.value
     project_dict["name"] = body.name
     project_dict["sheet_count"] = sheet_count
@@ -365,7 +368,7 @@ class NewFromTemplateRequest(BaseModel):
 @app.post("/project/from-template")
 async def create_from_template(body: NewFromTemplateRequest):
     """Create a new blank project pre-populated from a drawing template."""
-    from .models.project import BlockDiagram, SchematicSheet, HarnessSheet, TitleBlock
+    from models.project import BlockDiagram, SchematicSheet, HarnessSheet, TitleBlock
 
     # Load the template
     tpl_data = _read_library("templates")
@@ -412,9 +415,9 @@ async def create_from_template(body: NewFromTemplateRequest):
     elif layer == DrawingLayer.HARNESS:
         project.harness_sheets.append(HarnessSheet(number=1, title=title))
 
-    _projects[project.project_id] = project
+    await save_project(project)
 
-    result = _model_to_dict(project)
+    result = model_to_dict(project)
     # Merge template properties with any frontend overrides
     base_props = {}
     tpl_schema = template.get("properties", {})
@@ -446,7 +449,7 @@ async def merge_fragment(body: MergeRequest):
     Merge a parsed layer fragment into an existing project (or create a new one).
     Triggers cross-reference building and consistency validation.
     """
-    from .validators.consistency import run_consistency_checks
+    from validators.consistency import run_consistency_checks
 
     job = _parse_jobs.get(body.job_id)
     if not job or job["status"] != "complete":
@@ -454,25 +457,20 @@ async def merge_fragment(body: MergeRequest):
 
     # Resolve or create project
     project_id = body.project_id
-    if project_id and project_id in _projects:
-        project = _projects[project_id]
-    else:
+    project = await get_project(project_id) if project_id else None
+    if project is None:
         project = ProjectModel(project_id=project_id or str(uuid.uuid4()))
-        _projects[project.project_id] = project
 
     layer = DrawingLayer(body.layer)
     fragment_dict = job["model_fragment"]
 
     # Merge fragment into project (simplified: append sheets)
     if layer == DrawingLayer.BLOCK_DIAGRAM:
-        from .models.project import BlockDiagram
-        from .parsers.l1_block_parser import parse_block_diagram_dxf
-        # Fragment is already a dict; re-hydrate minimally
-        project.block_diagrams.append(_dict_to_block_diagram(fragment_dict))
+        project.block_diagrams.append(dict_to_block_diagram(fragment_dict))
     elif layer == DrawingLayer.SCHEMATIC:
-        project.schematic_sheets.append(_dict_to_schematic_sheet(fragment_dict))
+        project.schematic_sheets.append(dict_to_schematic_sheet(fragment_dict))
     elif layer == DrawingLayer.HARNESS:
-        project.harness_sheets.append(_dict_to_harness_sheet(fragment_dict))
+        project.harness_sheets.append(dict_to_harness_sheet(fragment_dict))
 
     project.parse_warnings.extend(job["warnings"])
 
@@ -483,6 +481,8 @@ async def merge_fragment(body: MergeRequest):
     consistency_report = run_consistency_checks(project)
     project.consistency_warnings = consistency_report["warnings"]
 
+    await save_project(project)
+
     return {
         "project_id": project.project_id,
         "consistency_warnings": consistency_report["warnings"],
@@ -492,9 +492,7 @@ async def merge_fragment(body: MergeRequest):
 
 @app.delete("/project/{project_id}/layer/{layer}")
 async def clear_layer(project_id: str, layer: str):
-    project = _projects.get(project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
+    project = await _require_project(project_id)
     try:
         dl = DrawingLayer(layer)
     except ValueError:
@@ -508,6 +506,7 @@ async def clear_layer(project_id: str, layer: str):
         project.harness_sheets.clear()
 
     build_cross_references(project)
+    await save_project(project)
     return {"project_id": project_id, "cleared_layer": layer}
 
 
@@ -522,10 +521,8 @@ class ExportRequest(BaseModel):
 
 @app.post("/export/dxf")
 async def export_dxf(body: ExportRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .exporters.dxf_writer import write_dxf
+    project = await _require_project(body.project_id)
+    from exporters.dxf_writer import write_dxf
     layer = DrawingLayer(body.layer) if body.layer else DrawingLayer.SCHEMATIC
     out_path = write_dxf(project, layer)
     return FileResponse(out_path, filename=f"{project.project_number or 'export'}_{layer.value}.dxf")
@@ -533,10 +530,8 @@ async def export_dxf(body: ExportRequest):
 
 @app.post("/export/pdf")
 async def export_pdf(body: ExportRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .exporters.pdf_writer import write_pdf
+    project = await _require_project(body.project_id)
+    from exporters.pdf_writer import write_pdf
     layer = DrawingLayer(body.layer) if body.layer else DrawingLayer.SCHEMATIC
     out_path = write_pdf(project, layer)
     return FileResponse(out_path, filename=f"{project.project_number or 'export'}_{layer.value}.pdf")
@@ -544,21 +539,17 @@ async def export_pdf(body: ExportRequest):
 
 @app.post("/export/wire-list")
 async def export_wire_list(body: ExportRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .exporters.l3_harness_writer import write_wire_list_csv
+    project = await _require_project(body.project_id)
+    from exporters.l3_harness_writer import write_wire_list_csv
     out_path = write_wire_list_csv(project)
     return FileResponse(out_path, filename="wire_list.csv")
 
 
 @app.post("/export/bom")
 async def export_bom(body: ExportRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
+    project = await _require_project(body.project_id)
     layer = DrawingLayer(body.layer) if body.layer else DrawingLayer.SCHEMATIC
-    from .exporters.l2_schema_writer import write_bom_csv
+    from exporters.l2_schema_writer import write_bom_csv
     out_path = write_bom_csv(project, layer)
     return FileResponse(out_path, filename="bom.csv")
 
@@ -570,10 +561,8 @@ class PinTableRequest(BaseModel):
 
 @app.post("/export/pin-table")
 async def export_pin_table(body: PinTableRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .exporters.l2_schema_writer import write_pin_table_csv
+    project = await _require_project(body.project_id)
+    from exporters.l2_schema_writer import write_pin_table_csv
     out_path = write_pin_table_csv(project, body.connector_ref)
     return FileResponse(out_path, filename=f"pin_table_{body.connector_ref}.csv")
 
@@ -590,18 +579,16 @@ class AIModifyRequest(BaseModel):
 
 @app.post("/ai/modify")
 async def ai_modify(body: AIModifyRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .ai.claude_client import modify_project
-    from .validators.consistency import run_consistency_checks
+    project = await _require_project(body.project_id)
+    from ai.claude_client import modify_project
+    from validators.consistency import run_consistency_checks
     result = await modify_project(project, DrawingLayer(body.layer), body.prompt)
     build_cross_references(result["updated_project"])
     consistency = run_consistency_checks(result["updated_project"])
-    _projects[body.project_id] = result["updated_project"]
+    await save_project(result["updated_project"])
     return {
         "changeset":       result["changeset"],
-        "updated_project": _model_to_dict(result["updated_project"]),
+        "updated_project": model_to_dict(result["updated_project"]),
         "compliance":      result.get("compliance", {}),
         "consistency":     consistency,
     }
@@ -616,7 +603,7 @@ class AIGenerateRequest(BaseModel):
 
 @app.post("/ai/generate")
 async def ai_generate(body: AIGenerateRequest):
-    from .ai.claude_client import generate_fragment
+    from ai.claude_client import generate_fragment
     result = await generate_fragment(body.template, body.parameters, DrawingLayer(body.layer))
     return result
 
@@ -629,10 +616,8 @@ class AIExplainRequest(BaseModel):
 
 @app.post("/ai/explain")
 async def ai_explain(body: AIExplainRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .ai.claude_client import explain_element
+    project = await _require_project(body.project_id)
+    from ai.claude_client import explain_element
     result = await explain_element(project, DrawingLayer(body.layer), body.element_id)
     return result
 
@@ -645,10 +630,8 @@ class AIPropagateRequest(BaseModel):
 
 @app.post("/ai/propagate")
 async def ai_propagate(body: AIPropagateRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .ai.claude_client import propagate_changes
+    project = await _require_project(body.project_id)
+    from ai.claude_client import propagate_changes
     result = await propagate_changes(project, DrawingLayer(body.source_layer), body.changeset)
     return result
 
@@ -664,13 +647,11 @@ class ComplianceCheckRequest(BaseModel):
 
 @app.post("/compliance/check")
 async def compliance_check(body: ComplianceCheckRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .compliance.checker import run_compliance
+    project = await _require_project(body.project_id)
+    from compliance.checker import run_compliance
     layer = DrawingLayer(body.layer) if body.layer else None
     report = run_compliance(project, layer=layer)
-    return _model_to_dict(report)
+    return model_to_dict(report)
 
 
 class ComplianceFixRequest(BaseModel):
@@ -680,12 +661,10 @@ class ComplianceFixRequest(BaseModel):
 
 @app.post("/compliance/fix")
 async def compliance_fix(body: ComplianceFixRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .ai.claude_client import fix_compliance_rule
+    project = await _require_project(body.project_id)
+    from ai.claude_client import fix_compliance_rule
     result = await fix_compliance_rule(project, body.rule_id)
-    _projects[body.project_id] = result["updated_project"]
+    await save_project(result["updated_project"])
     return result
 
 
@@ -695,161 +674,12 @@ class ConsistencyRequest(BaseModel):
 
 @app.post("/validate/consistency")
 async def validate_consistency(body: ConsistencyRequest):
-    project = _projects.get(body.project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    from .validators.consistency import run_consistency_checks
+    project = await _require_project(body.project_id)
+    from validators.consistency import run_consistency_checks
     result = run_consistency_checks(project)
     project.consistency_warnings = result["warnings"]
+    await save_project(project)
     return result
-
-
-# ─────────────────────────────────────────────
-# Fragment re-hydration helpers
-# ─────────────────────────────────────────────
-
-def _dict_to_block_diagram(d: dict):
-    from .models.project import BlockDiagram, LRUBlock, Point, SignalPath, SignalType
-    bd = BlockDiagram(
-        sheet_number=d.get("sheet_number", 1),
-        title=d.get("title", ""),
-        power_buses=d.get("power_buses", []),
-    )
-    for lb in d.get("lru_blocks", []):
-        pos = lb.get("position", {})
-        bd.lru_blocks.append(LRUBlock(
-            id=lb.get("id", str(uuid.uuid4())),
-            ref=lb.get("ref", ""),
-            name=lb.get("name", ""),
-            ata_chapter=lb.get("ata_chapter", ""),
-            part_number=lb.get("part_number", ""),
-            installation_dwg=lb.get("installation_dwg", ""),
-            position=Point(x=pos.get("x", 0), y=pos.get("y", 0)),
-            sheet=lb.get("sheet", 1),
-        ))
-    for sp in d.get("signal_paths", []):
-        try:
-            st = SignalType(sp.get("signal_type", "unknown"))
-        except ValueError:
-            st = SignalType.UNKNOWN
-        bd.signal_paths.append(SignalPath(
-            id=sp.get("id", str(uuid.uuid4())),
-            path_id=sp.get("path_id", ""),
-            signal_type=st,
-            from_lru_id=sp.get("from_lru_id", ""),
-            to_lru_id=sp.get("to_lru_id", ""),
-            voltage=sp.get("voltage"),
-            sheet=sp.get("sheet", 1),
-        ))
-    return bd
-
-
-def _dict_to_schematic_sheet(d: dict):
-    from .models.project import (
-        Component, ComponentType, ConnectorPin, ConnectorShell,
-        Point, SchematicSheet, SignalType, WireSegment,
-    )
-    sheet = SchematicSheet(
-        number=d.get("number", 1),
-        title=d.get("title", ""),
-        signal_path_id=d.get("signal_path_id", ""),
-    )
-    for c in d.get("components", []):
-        try:
-            ct = ComponentType(c.get("type", "unknown"))
-        except ValueError:
-            ct = ComponentType.UNKNOWN
-        pos = c.get("position", {})
-        sheet.components.append(Component(
-            id=c.get("id", str(uuid.uuid4())),
-            ref=c.get("ref", ""),
-            type=ct,
-            position=Point(x=pos.get("x", 0), y=pos.get("y", 0)),
-            rotation=c.get("rotation", 0.0),
-            sheet=c.get("sheet", 1),
-            attributes=c.get("attributes", {}),
-        ))
-    for conn in d.get("connectors", []):
-        pos = conn.get("position", {})
-        pins = [ConnectorPin(**p) for p in conn.get("pins", [])]
-        sheet.connectors.append(ConnectorShell(
-            id=conn.get("id", str(uuid.uuid4())),
-            ref=conn.get("ref", ""),
-            part_number=conn.get("part_number", ""),
-            mating_ref=conn.get("mating_ref", ""),
-            pins=pins,
-            position=Point(x=pos.get("x", 0), y=pos.get("y", 0)),
-            sheet=conn.get("sheet", 1),
-        ))
-    for w in d.get("wires", []):
-        try:
-            st = SignalType(w.get("signal_type", "unknown"))
-        except ValueError:
-            st = SignalType.UNKNOWN
-        sp = w.get("start", {})
-        ep = w.get("end", {})
-        sheet.wires.append(WireSegment(
-            id=w.get("id", str(uuid.uuid4())),
-            label=w.get("label", ""),
-            start=Point(x=sp.get("x", 0), y=sp.get("y", 0)),
-            end=Point(x=ep.get("x", 0), y=ep.get("y", 0)),
-            sheet=w.get("sheet", 1),
-            signal_type=st,
-            cross_section_mm2=w.get("cross_section_mm2"),
-            color=w.get("color"),
-            voltage=w.get("voltage"),
-        ))
-    return sheet
-
-
-def _dict_to_harness_sheet(d: dict):
-    from .models.project import (
-        ConnectorDetail, HarnessAssembly, HarnessSheet,
-        SignalType, WireRecord,
-    )
-    sheet = HarnessSheet(
-        number=d.get("number", 1),
-        title=d.get("title", ""),
-    )
-    for asm in d.get("assemblies", []):
-        assembly = HarnessAssembly(
-            id=asm.get("id", str(uuid.uuid4())),
-            assembly_number=asm.get("assembly_number", ""),
-            assembly_title=asm.get("assembly_title", ""),
-            ata_chapter=asm.get("ata_chapter", ""),
-            airframe_zone=asm.get("airframe_zone", ""),
-            routing_codes=asm.get("routing_codes", []),
-            sleeving_spec=asm.get("sleeving_spec", ""),
-        )
-        for wr in asm.get("wires", []):
-            try:
-                st = SignalType(wr.get("signal_type", "unknown"))
-            except ValueError:
-                st = SignalType.UNKNOWN
-            assembly.wires.append(WireRecord(
-                id=wr.get("id", str(uuid.uuid4())),
-                wire_label=wr.get("wire_label", ""),
-                from_connector=wr.get("from_connector", ""),
-                from_pin=wr.get("from_pin", ""),
-                to_connector=wr.get("to_connector", ""),
-                to_pin=wr.get("to_pin", ""),
-                length_m=wr.get("length_m"),
-                cross_section_mm2=wr.get("cross_section_mm2"),
-                color=wr.get("color", ""),
-                material_spec=wr.get("material_spec", ""),
-                signal_type=st,
-            ))
-        for cd in asm.get("connectors", []):
-            assembly.connectors.append(ConnectorDetail(
-                id=cd.get("id", str(uuid.uuid4())),
-                ref=cd.get("ref", ""),
-                part_number=cd.get("part_number", ""),
-                cage_code=cd.get("cage_code", ""),
-                backshell_pn=cd.get("backshell_pn", ""),
-                airframe_zone=cd.get("airframe_zone", ""),
-            ))
-        sheet.assemblies.append(assembly)
-    return sheet
 
 
 # ─────────────────────────────────────────────

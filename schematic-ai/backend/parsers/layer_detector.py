@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import DrawingLayer
+from models.project import DrawingLayer
 
 
 # ─────────────────────────────────────────────

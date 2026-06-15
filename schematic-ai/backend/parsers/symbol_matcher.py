@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import ComponentType, SignalType
+from models.project import ComponentType, SignalType
 
 # ─────────────────────────────────────────────
 # Load symbol library at import time

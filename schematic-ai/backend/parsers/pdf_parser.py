@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import (
+from models.project import (
     BlockDiagram, ConnectorDetail, DrawingLayer, HarnessAssembly,
     HarnessSheet, LRUBlock, Point, SchematicSheet, SignalPath,
     SignalType, TitleBlock, WireRecord,

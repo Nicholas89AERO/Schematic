@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..models.compliance import ComplianceReport
-from ..models.project import DrawingLayer, ProjectModel
+from models.compliance import ComplianceReport
+from models.project import DrawingLayer, ProjectModel
 from .rules_l1 import check_l1
 from .rules_l2 import check_l2
 from .rules_l3 import check_l3

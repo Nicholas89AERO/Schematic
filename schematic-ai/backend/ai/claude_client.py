@@ -10,8 +10,8 @@ import os
 import uuid
 from typing import Any
 
-from ..models.changes import ChangeSet
-from ..models.project import DrawingLayer, ProjectModel
+from models.changes import ChangeSet
+from models.project import DrawingLayer, ProjectModel
 from .changeset_applier import apply_changeset
 from .prompts import (
     EXPLAIN_PROMPT, FIX_PROMPT, PROPAGATION_PROMPT, SYSTEM_PROMPTS,
@@ -52,7 +52,7 @@ def _parse_changeset_from_response(text: str) -> ChangeSet:
             data = json.loads(text[start:end])
             # Minimal hydration — operations are the key part
             for op_data in data.get("operations", []):
-                from ..models.changes import ChangeOperation, ElementKind, OperationType
+                from models.changes import ChangeOperation, ElementKind, OperationType
                 try:
                     op = ChangeOperation(
                         operation=OperationType(op_data.get("operation", "add")),
@@ -238,7 +238,7 @@ async def fix_compliance_rule(
     rule_id: str,
 ) -> dict:
     """Generate and apply a fix for a specific compliance rule violation."""
-    from ..compliance.checker import run_compliance
+    from compliance.checker import run_compliance
     report = run_compliance(project)
     failing = next(
         (r for r in report.results if r.rule_id == rule_id and r.status.value == "fail"),

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import ezdxf
 
-from ..models.project import HarnessSheet, ProjectModel
+from models.project import HarnessSheet, ProjectModel
 
 
 _LAYER_TRUNK  = "HARNESS_TRUNK"

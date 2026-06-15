@@ -7,7 +7,7 @@ consistency score. Runs automatically after every parse, merge, or AI modificati
 
 from __future__ import annotations
 
-from ..models.project import DrawingLayer, ProjectModel, SignalType
+from models.project import DrawingLayer, ProjectModel, SignalType
 
 
 def run_consistency_checks(project: ProjectModel) -> dict:

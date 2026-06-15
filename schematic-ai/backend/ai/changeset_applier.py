@@ -9,8 +9,8 @@ import dataclasses
 import uuid
 from typing import Any
 
-from ..models.changes import ChangeOperation, ChangeSet, ElementKind, OperationType
-from ..models.project import (
+from models.changes import ChangeOperation, ChangeSet, ElementKind, OperationType
+from models.project import (
     BlockDiagram, Component, ComponentType, ConnectorDetail, ConnectorPin,
     ConnectorShell, DrawingLayer, HarnessAssembly, LRUBlock, Point,
     ProjectModel, SchematicSheet, SignalPath, SignalType, Splice, WireRecord,
@@ -225,7 +225,7 @@ def _get_or_create_harness_assembly(model: ProjectModel, sheet_num: int) -> Harn
             asm = HarnessAssembly()
             hs.assemblies.append(asm)
             return asm
-    from ..models.project import HarnessSheet
+    from models.project import HarnessSheet
     asm = HarnessAssembly()
     hs = HarnessSheet(number=sheet_num, assemblies=[asm])
     model.harness_sheets.append(hs)

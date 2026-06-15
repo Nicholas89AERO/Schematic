@@ -4,8 +4,8 @@ Layer 3 — Harness compliance rules (HRN001–HRN010).
 
 from __future__ import annotations
 
-from ..models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
-from ..models.project import DrawingLayer, ProjectModel
+from models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
+from models.project import DrawingLayer, ProjectModel
 
 _HIGH_TEMP_KEYWORDS = {"engine", "exhaust", "nacelle", "turbine", "bleed", "hot"}
 

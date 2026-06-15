@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import (
+from models.project import (
     Component, ComponentType, Connection, ConnectorPin, ConnectorShell,
     Point, SchematicSheet, SignalType, WireSegment,
 )

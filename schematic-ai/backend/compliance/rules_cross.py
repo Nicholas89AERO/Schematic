@@ -4,8 +4,8 @@ Cross-Layer compliance rules (XL001–XL010).
 
 from __future__ import annotations
 
-from ..models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
-from ..models.project import DrawingLayer, ProjectModel
+from models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
+from models.project import DrawingLayer, ProjectModel
 
 # IEC 60364-5-52 current capacity table (A): cross_section_mm² → max current (A)
 _IEC_CURRENT_CAPACITY = {

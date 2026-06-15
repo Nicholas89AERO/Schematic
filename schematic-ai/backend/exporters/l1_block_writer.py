@@ -15,7 +15,7 @@ from typing import Union
 import ezdxf
 from ezdxf.enums import TextEntityAlignment
 
-from ..models.project import BlockDiagram, DrawingLayer, ProjectModel, SignalType
+from models.project import BlockDiagram, DrawingLayer, ProjectModel, SignalType
 
 
 # Signal type → DXF colour index (ACI)

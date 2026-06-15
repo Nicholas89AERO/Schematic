@@ -4,7 +4,7 @@ Per-layer system prompts and shared prompt templates for Claude.
 
 from __future__ import annotations
 
-from ..models.project import DrawingLayer
+from models.project import DrawingLayer
 
 # ─────────────────────────────────────────────
 # Layer system prompts

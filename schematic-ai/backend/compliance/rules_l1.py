@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import re
 
-from ..models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
-from ..models.project import DrawingLayer, ProjectModel
+from models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
+from models.project import DrawingLayer, ProjectModel
 
 _SP_FORMAT = re.compile(r'^SP-\d{3,}$')
 

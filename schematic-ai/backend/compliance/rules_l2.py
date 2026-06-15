@@ -4,8 +4,8 @@ Layer 2 — Schematic compliance rules (SCH001–SCH007).
 
 from __future__ import annotations
 
-from ..models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
-from ..models.project import DrawingLayer, ProjectModel, SignalType
+from models.compliance import ComplianceReport, RuleResult, RuleSeverity, RuleStatus
+from models.project import DrawingLayer, ProjectModel, SignalType
 
 TOLERANCE_MM = 1.5  # snap tolerance for dangling wire check
 

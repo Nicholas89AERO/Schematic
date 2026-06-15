@@ -9,7 +9,7 @@ resolves references by matching IDs/labels, and populates:
 
 from __future__ import annotations
 
-from ..models.project import (
+from models.project import (
     CrossRef, DrawingLayer, HarnessAssembly, ProjectModel,
     SchematicSheet, SignalPath,
 )

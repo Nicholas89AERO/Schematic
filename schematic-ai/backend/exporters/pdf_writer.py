@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from ..models.project import DrawingLayer, ProjectModel
+from models.project import DrawingLayer, ProjectModel
 
 _OUT_DIR = Path("/tmp/schematic_exports")
 _OUT_DIR.mkdir(parents=True, exist_ok=True)

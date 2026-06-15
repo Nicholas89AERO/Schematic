@@ -10,7 +10,7 @@ from pathlib import Path
 
 import ezdxf
 
-from ..models.project import DrawingLayer, ProjectModel, SchematicSheet
+from models.project import DrawingLayer, ProjectModel, SchematicSheet
 
 
 _LAYER_WIRE   = "WIRE"

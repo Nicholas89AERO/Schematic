@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import BlockDiagram, DrawingLayer, HarnessSheet, SchematicSheet
+from models.project import BlockDiagram, DrawingLayer, HarnessSheet, SchematicSheet
 from .layer_detector import LayerDetectionResult, detect_layer
 from .l1_block_parser import parse_block_diagram_dxf
 from .l2_schema_parser import parse_schematic_dxf

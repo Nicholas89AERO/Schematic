@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from ..models.project import (
+from models.project import (
     BlockDiagram, LRUBlock, Point, SignalPath, SignalType,
 )
 from .symbol_matcher import extract_signal_path_id, extract_voltage, infer_signal_type

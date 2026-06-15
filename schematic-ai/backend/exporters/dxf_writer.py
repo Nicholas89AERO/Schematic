@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from ..models.project import DrawingLayer, ProjectModel
+from models.project import DrawingLayer, ProjectModel
 from .l1_block_writer import write_block_diagram_dxf
 from .l2_schema_writer import write_schematic_dxf
 from .l3_harness_writer import write_harness_dxf
