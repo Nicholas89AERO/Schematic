@@ -2,7 +2,12 @@ import axios from 'axios';
 import type { DrawingLayer, LayerDetectionResult, ParseJob, ProjectModel, ConsistencyResult } from '../types/project';
 import type { ComplianceReport } from '../types/compliance';
 
-const BASE = '/api';
+function portalBase(): string {
+  const m = location.pathname.match(/^(\/app\/schematic)/);
+  return m ? m[1] : '';
+}
+
+const BASE = `${portalBase()}/api`;
 
 const api = axios.create({ baseURL: BASE });
 
@@ -226,7 +231,7 @@ export function connectParseWebSocket(
   onMessage: (msg: unknown) => void,
   onClose?: () => void,
 ): WebSocket {
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/${jobId}`;
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${portalBase()}/ws/${jobId}`;
   const ws = new WebSocket(wsUrl);
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   if (onClose) ws.onclose = onClose;
