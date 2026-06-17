@@ -4,6 +4,6 @@
   "buildAptPackages": ["libcairo2-dev", "libpango1.0-dev", "libgdk-pixbuf-2.0-dev"],
   "deploy": {
     "aptPackages": ["libcairo2", "libpango-1.0-0", "libgdk-pixbuf-2.0-0"],
-    "startCommand": "uvicorn main:app --host :: --port $PORT"
+    "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT"
   }
 }
