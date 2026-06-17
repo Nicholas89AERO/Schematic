@@ -15,6 +15,7 @@
  */
 import React from 'react';
 import type { DrawingLayer } from '../../types/project';
+import { useCanvasPalette } from '../../theme/canvasPalette';
 
 // ─── props ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ export default function DrawingSheet({
   showGrid    = true,
 }: DrawingSheetProps) {
 
+  const p = useCanvasPalette();
   const accent   = LAYER_COLOR[layer];
   const badge    = LAYER_BADGE[layer];
 
@@ -117,26 +119,26 @@ export default function DrawingSheet({
 
       {/* ── Sheet background ── */}
       <rect x={0} y={0} width={width} height={height}
-        fill="#111827" />
+        fill={p.sheetBg} />
 
       {/* ── Outer border ── */}
       <rect
         x={outerMargin} y={outerMargin}
         width={width - 2*outerMargin} height={height - 2*outerMargin}
-        fill="none" stroke="#2a3550" strokeWidth={1.2} />
+        fill="none" stroke={p.sheetBorder} strokeWidth={1.2} />
 
       {/* ── Inner drawing-area border ── */}
       <rect
         x={drawX} y={drawY}
         width={drawW} height={drawH + titleH}
-        fill="#141e30" stroke="#2a3550" strokeWidth={1.5} />
+        fill={p.sheetPaper} stroke={p.sheetBorder} strokeWidth={1.5} />
 
       {/* ── Grid dots ── */}
       {showGrid && (
         <>
           <defs>
             <pattern id={patId} x={drawX} y={drawY} width={20} height={20} patternUnits="userSpaceOnUse">
-              <circle cx={10} cy={10} r={0.8} fill="#1e2d42" />
+              <circle cx={10} cy={10} r={0.8} fill={p.gridDot} />
             </pattern>
           </defs>
           <rect x={drawX} y={drawY} width={drawW} height={drawH}
@@ -152,13 +154,13 @@ export default function DrawingSheet({
           <g key={`zt${i}`}>
             <line x1={drawX + colW * i} y1={drawY - zoneMargin}
                   x2={drawX + colW * i} y2={drawY}
-              stroke="#263045" strokeWidth={0.6} />
+              stroke={p.zoneLine} strokeWidth={0.6} />
             <text x={cx} y={drawY - zoneMargin * 0.45}
-              fill="#3a4d64" fontSize={fs} fontFamily="JetBrains Mono,monospace"
+              fill={p.zoneText} fontSize={fs} fontFamily="JetBrains Mono,monospace"
               textAnchor="middle" dominantBaseline="middle">{letter}</text>
             {/* bottom repeat */}
             <text x={cx} y={tbY + titleH + zoneMargin * 0.55}
-              fill="#3a4d64" fontSize={fs} fontFamily="JetBrains Mono,monospace"
+              fill={p.zoneText} fontSize={fs} fontFamily="JetBrains Mono,monospace"
               textAnchor="middle" dominantBaseline="middle">{letter}</text>
           </g>
         );
@@ -171,13 +173,13 @@ export default function DrawingSheet({
           <g key={`zr${i}`}>
             <line x1={drawX - zoneMargin} y1={drawY + rowH * i}
                   x2={drawX}              y2={drawY + rowH * i}
-              stroke="#263045" strokeWidth={0.6} />
+              stroke={p.zoneLine} strokeWidth={0.6} />
             <text x={drawX - zoneMargin * 0.45} y={cy}
-              fill="#3a4d64" fontSize={fs} fontFamily="JetBrains Mono,monospace"
+              fill={p.zoneText} fontSize={fs} fontFamily="JetBrains Mono,monospace"
               textAnchor="middle" dominantBaseline="middle">{i + 1}</text>
             {/* right repeat */}
             <text x={drawX + drawW + zoneMargin * 0.5} y={cy}
-              fill="#3a4d64" fontSize={fs} fontFamily="JetBrains Mono,monospace"
+              fill={p.zoneText} fontSize={fs} fontFamily="JetBrains Mono,monospace"
               textAnchor="middle" dominantBaseline="middle">{i + 1}</text>
           </g>
         );
@@ -191,33 +193,33 @@ export default function DrawingSheet({
         [width - outerMargin - 6, height / 2, width - outerMargin, height / 2],
       ] as [number,number,number,number][]).map(([x1,y1,x2,y2], i) => (
         <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-          stroke="#2a3550" strokeWidth={1} />
+          stroke={p.sheetBorder} strokeWidth={1} />
       ))}
 
       {/* ── Revision table strip (right edge) ── */}
       <rect x={drawX + drawW} y={drawY}
         width={revW} height={drawH}
-        fill="#0f1623" stroke="#2a3550" strokeWidth={0.8} />
+        fill={p.revStripBg} stroke={p.sheetBorder} strokeWidth={0.8} />
       <text
         x={drawX + drawW + revW / 2}
         y={drawY + 16}
-        fill="#3a4d64" fontSize={8} fontFamily="JetBrains Mono,monospace"
+        fill={p.zoneText} fontSize={8} fontFamily="JetBrains Mono,monospace"
         textAnchor="middle">REV</text>
       {/* Revision rows */}
       {[0,1,2,3,4].map(i => (
         <g key={i}>
           <line x1={drawX+drawW} y1={drawY + 30 + i*24}
                 x2={drawX+drawW+revW} y2={drawY + 30 + i*24}
-            stroke="#1e2d42" strokeWidth={0.5} />
+            stroke={p.revStripLine} strokeWidth={0.5} />
           <text x={drawX+drawW+revW/2} y={drawY + 42 + i*24}
-            fill="#263045" fontSize={8} fontFamily="JetBrains Mono,monospace"
+            fill={p.revStripText} fontSize={8} fontFamily="JetBrains Mono,monospace"
             textAnchor="middle">{String.fromCharCode(65 + i)}</text>
         </g>
       ))}
 
       {/* ── Title block background ── */}
       <rect x={tbX} y={tbY} width={tbW} height={titleH}
-        fill="#0d1520" stroke="#2a3550" strokeWidth={1} />
+        fill={p.titleBg} stroke={p.sheetBorder} strokeWidth={1} />
 
       {/* ── Title block vertical dividers ── */}
       {/* Layout: [Title 35%][DWG# 20%][Rev 8%][Scale 8%][Sheet 8%][Std 10%][Approval 11%] */}
@@ -231,13 +233,13 @@ export default function DrawingSheet({
           x += cw;
           return (
             <g key={i}>
-              <line x1={rx} y1={tbY} x2={rx} y2={tbY+titleH} stroke="#2a3550" strokeWidth={0.7} />
+              <line x1={rx} y1={tbY} x2={rx} y2={tbY+titleH} stroke={p.titleLine} strokeWidth={0.7} />
               <text x={rx + 4} y={tbY + 10}
-                fill="#2e3d52" fontSize={fsT} fontFamily="JetBrains Mono,monospace"
+                fill={p.titleLabel} fontSize={fsT} fontFamily="JetBrains Mono,monospace"
                 fontWeight="600">{labels[i]}</text>
-              <line x1={rx} y1={tbY + 16} x2={rx + cw} y2={tbY + 16} stroke="#1a2436" strokeWidth={0.5} />
+              <line x1={rx} y1={tbY + 16} x2={rx + cw} y2={tbY + 16} stroke={p.titleDivider} strokeWidth={0.5} />
               <text x={rx + 4} y={tbY + 28}
-                fill={i === 0 ? '#c0cfe0' : '#8096af'}
+                fill={i === 0 ? p.titleValuePrimary : p.titleValue}
                 fontSize={i === 0 ? fsV + 1 : fsV}
                 fontFamily={i === 0 ? 'Inter,sans-serif' : 'JetBrains Mono,monospace'}
                 fontWeight={i === 0 ? '600' : '400'}>{values[i]}</text>
@@ -248,17 +250,17 @@ export default function DrawingSheet({
 
       {/* ── Title block: second row ── */}
       <line x1={tbX} y1={tbY+titleH*0.5} x2={tbX+tbW*0.35} y2={tbY+titleH*0.5}
-        stroke="#1a2436" strokeWidth={0.5} />
+        stroke={p.titleDivider} strokeWidth={0.5} />
       {/* ATA chapter */}
       <text x={tbX + 4} y={tbY + titleH*0.5 + 10}
-        fill="#2e3d52" fontSize={fsT} fontFamily="JetBrains Mono,monospace">ATA CHAPTER</text>
+        fill={p.titleLabel} fontSize={fsT} fontFamily="JetBrains Mono,monospace">ATA CHAPTER</text>
       <text x={tbX + 4} y={tbY + titleH*0.5 + 22}
-        fill="#8096af" fontSize={fsV} fontFamily="JetBrains Mono,monospace">{ataChapter || '—'}</text>
+        fill={p.titleValue} fontSize={fsV} fontFamily="JetBrains Mono,monospace">{ataChapter || '—'}</text>
       {/* Aircraft type */}
       <text x={tbX + tbW*0.12} y={tbY + titleH*0.5 + 10}
-        fill="#2e3d52" fontSize={fsT} fontFamily="JetBrains Mono,monospace">AIRCRAFT TYPE</text>
+        fill={p.titleLabel} fontSize={fsT} fontFamily="JetBrains Mono,monospace">AIRCRAFT TYPE</text>
       <text x={tbX + tbW*0.12} y={tbY + titleH*0.5 + 22}
-        fill="#8096af" fontSize={fsV} fontFamily="JetBrains Mono,monospace">{aircraftType || '—'}</text>
+        fill={p.titleValue} fontSize={fsV} fontFamily="JetBrains Mono,monospace">{aircraftType || '—'}</text>
 
       {/* ── Approval block ── */}
       {(() => {
@@ -270,14 +272,14 @@ export default function DrawingSheet({
           return (
             <g key={lbl}>
               <line x1={ax} y1={ry + titleH/3} x2={ax + approvalW} y2={ry + titleH/3}
-                stroke="#2a3550" strokeWidth={0.5} />
+                stroke={p.titleLine} strokeWidth={0.5} />
               <text x={ax + 4} y={ry + 10}
-                fill="#2e3d52" fontSize={fsT} fontFamily="JetBrains Mono,monospace">{lbl}</text>
+                fill={p.titleLabel} fontSize={fsT} fontFamily="JetBrains Mono,monospace">{lbl}</text>
               <text x={ax + 50} y={ry + 24}
-                fill="#6b7e96" fontSize={fsV} fontFamily="JetBrains Mono,monospace">{vals[i]}</text>
+                fill={p.titleApproval} fontSize={fsV} fontFamily="JetBrains Mono,monospace">{vals[i]}</text>
               {/* vertical line between label and value */}
               <line x1={ax+46} y1={ry} x2={ax+46} y2={ry+titleH/3}
-                stroke="#1a2436" strokeWidth={0.4} />
+                stroke={p.titleDivider} strokeWidth={0.4} />
             </g>
           );
         });
@@ -292,12 +294,12 @@ export default function DrawingSheet({
 
       {/* ── Sheet name (top-right of drawing area) ── */}
       <text x={drawX + drawW - 8} y={drawY + 14}
-        fill="#2e3d52" fontSize={9} fontFamily="JetBrains Mono,monospace"
+        fill={p.titleLabel} fontSize={9} fontFamily="JetBrains Mono,monospace"
         textAnchor="end">{title || 'UNTITLED'}</text>
 
       {/* ── Compass/north mark in top-right corner ── */}
       <text x={width - outerMargin - 4} y={outerMargin + 12}
-        fill="#263045" fontSize={8} fontFamily="JetBrains Mono,monospace"
+        fill={p.watermark} fontSize={8} fontFamily="JetBrains Mono,monospace"
         textAnchor="end">SchematicAI</text>
 
     </g>

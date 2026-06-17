@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useReducer } from 'react';
-import { reducer, initialState, type AppState, type Action } from './reducer';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import {
+  reducer,
+  initialState,
+  AI_PANEL_STORAGE_KEY,
+  readAiPanelOpen,
+  type AppState,
+  type Action,
+} from './reducer';
 
 interface AppContextValue {
   state: AppState;
@@ -9,7 +16,20 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(
+    reducer,
+    initialState,
+    (s) => ({ ...s, aiPanelOpen: readAiPanelOpen() }),
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AI_PANEL_STORAGE_KEY, state.aiPanelOpen ? 'open' : 'closed');
+    } catch {
+      /* ignore */
+    }
+  }, [state.aiPanelOpen]);
+
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       {children}

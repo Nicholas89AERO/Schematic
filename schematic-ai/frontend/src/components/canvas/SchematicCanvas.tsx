@@ -4,6 +4,7 @@ import { useApp } from '../../state/AppContext';
 import DrawingSheet from './DrawingSheet';
 import ToolGhost from './ToolGhosts';
 import ContextMenu, { type MenuSection } from '../ContextMenu';
+import { SIGNAL_COLORS, useCanvasPalette } from '../../theme/canvasPalette';
 
 const COMPONENT_SYMBOLS: Record<string, string> = {
   circuit_breaker: '⊞',
@@ -27,17 +28,18 @@ interface Props {
 }
 
 function ComponentSymbol({ comp }: { comp: Component; selected: boolean }) {
+  const p = useCanvasPalette();
   const symbol = COMPONENT_SYMBOLS[comp.type] || '?';
   const { x, y } = comp.position;
   return (
     <g transform={`translate(${x},${y}) rotate(${comp.rotation})`}>
       <rect x="-8" y="-8" width="16" height="16" rx="2"
-        fill="#161b22" stroke="#58a6ff" strokeWidth="0.8" />
-      <text x="0" y="4" textAnchor="middle" fill="#c9d1d9" fontSize="7" fontFamily="Inter">
+        fill={p.symbolFill} stroke={p.accentStroke} strokeWidth="0.8" />
+      <text x="0" y="4" textAnchor="middle" fill={p.symbolText} fontSize="7" fontFamily="Inter">
         {symbol}
       </text>
       {comp.ref && (
-        <text x="0" y="-12" textAnchor="middle" fill="#79c0ff" fontSize="7" fontFamily="JetBrains Mono, monospace">
+        <text x="0" y="-12" textAnchor="middle" fill={p.symbolRef} fontSize="7" fontFamily="JetBrains Mono, monospace">
           {comp.ref}
         </text>
       )}
@@ -46,6 +48,7 @@ function ComponentSymbol({ comp }: { comp: Component; selected: boolean }) {
 }
 
 function ConnectorBlock({ conn, selected, onClick }: { conn: ConnectorShell; selected: boolean; onClick: () => void }) {
+  const p = useCanvasPalette();
   const { x, y } = conn.position;
   const pinH = 8;
   const boxH = Math.max(conn.pins.length, 1) * pinH + 10;
@@ -53,24 +56,24 @@ function ConnectorBlock({ conn, selected, onClick }: { conn: ConnectorShell; sel
   return (
     <g transform={`translate(${x},${y})`} onClick={onClick} style={{ cursor: 'pointer' }}>
       <rect x="0" y="0" width={boxW} height={boxH} rx="2"
-        fill="#0d1117"
-        stroke={selected ? '#58a6ff' : '#30363d'}
+        fill={p.symbolFill}
+        stroke={selected ? p.accentStroke : p.symbolStroke}
         strokeWidth={selected ? 2 : 1}
       />
-      <text x={boxW / 2} y="-3" textAnchor="middle" fill="#79c0ff" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">
+      <text x={boxW / 2} y="-3" textAnchor="middle" fill={p.symbolRef} fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">
         {conn.ref}
       </text>
       {conn.part_number && (
-        <text x={boxW / 2} y={boxH + 7} textAnchor="middle" fill="#6e7681" fontSize="6" fontFamily="Inter">
+        <text x={boxW / 2} y={boxH + 7} textAnchor="middle" fill={p.mutedText} fontSize="6" fontFamily="Inter">
           {conn.part_number}
         </text>
       )}
       {conn.pins.slice(0, 8).map((pin, i) => (
         <g key={pin.pin_number} transform={`translate(2, ${5 + i * pinH})`}>
-          <text fill="#8b949e" fontSize="6" fontFamily="JetBrains Mono, monospace">{pin.pin_number}</text>
-          <text x="8" fill="#c9d1d9" fontSize="6" fontFamily="Inter">{pin.signal_name}</text>
+          <text fill={p.mutedText} fontSize="6" fontFamily="JetBrains Mono, monospace">{pin.pin_number}</text>
+          <text x="8" fill={p.symbolText} fontSize="6" fontFamily="Inter">{pin.signal_name}</text>
           {conn.pins.length > 8 && i === 7 && (
-            <text x="8" fill="#6e7681" fontSize="5">+{conn.pins.length - 8} more</text>
+            <text x="8" fill={p.mutedText} fontSize="5">+{conn.pins.length - 8} more</text>
           )}
         </g>
       ))}
@@ -83,11 +86,8 @@ function ConnectorBlock({ conn, selected, onClick }: { conn: ConnectorShell; sel
 }
 
 function WireLine({ wire, selected, onClick }: { wire: WireSegment; selected: boolean; onClick: () => void }) {
-  const SIGNAL_COLORS: Record<string, string> = {
-    power_dc: '#f0883e', power_ac: '#f85149', arinc429: '#58a6ff',
-    discrete: '#8b949e', analog: '#3fb950', ground: '#3fb950', unknown: '#6e7681',
-  };
-  const color = SIGNAL_COLORS[wire.signal_type] || '#6e7681';
+  const p = useCanvasPalette();
+  const color = SIGNAL_COLORS[wire.signal_type] || SIGNAL_COLORS.unknown;
   const { start: s, end: e } = wire;
 
   // Orthogonal L-shape: horizontal first then vertical
@@ -101,7 +101,7 @@ function WireLine({ wire, selected, onClick }: { wire: WireSegment; selected: bo
       <polyline
         points={pts}
         fill="none"
-        stroke={selected ? '#ffffff' : color}
+        stroke={selected ? p.selectionStroke : color}
         strokeWidth={selected ? 2 : 1}
         strokeDasharray={wire.shielded ? '4,2' : undefined}
         strokeLinejoin="round"
@@ -123,6 +123,7 @@ const SCH_H = 794;
 
 export default function SchematicCanvas({ sheets, activeSheet = 1 }: Props) {
   const { state, dispatch } = useApp();
+  const p = useCanvasPalette();
   const [zoom, setZoom] = useState(0.85);
   const [pan, setPan] = useState({ x: 40, y: 40 });
   const [isPanning, setIsPanning] = useState(false);
@@ -364,7 +365,7 @@ export default function SchematicCanvas({ sheets, activeSheet = 1 }: Props) {
   }
 
   const canvas = (content: React.ReactNode) => (
-    <div className="w-full h-full bg-[#0d1117] relative overflow-hidden select-none"
+    <div className="w-full h-full bg-aero-dark relative overflow-hidden select-none"
       onWheel={onWheel} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <svg ref={svgRef} className="w-full h-full" style={{ cursor }}
         onMouseDown={onMouseDown} onClick={onCanvasClick}
@@ -397,11 +398,11 @@ export default function SchematicCanvas({ sheets, activeSheet = 1 }: Props) {
       <>
         {sheetEl()}
         <text x={SCH_W/2} y={SCH_H/2 - 80}
-          fill="#2e3d52" fontSize={14} fontFamily="Inter,sans-serif" textAnchor="middle">
+          fill={p.emptyTitle} fontSize={14} fontFamily="Inter,sans-serif" textAnchor="middle">
           {activeTool ? `Click to place: ${activeTool.label}` : 'Blank drawing — use the Insert tab to add components'}
         </text>
         <text x={SCH_W/2} y={SCH_H/2 - 60}
-          fill="#263045" fontSize={11} fontFamily="JetBrains Mono,monospace" textAnchor="middle">
+          fill={p.emptySubtitle} fontSize={11} fontFamily="JetBrains Mono,monospace" textAnchor="middle">
           or drop a DXF / PDF file into the Explorer sidebar to import
         </text>
       </>
@@ -409,7 +410,7 @@ export default function SchematicCanvas({ sheets, activeSheet = 1 }: Props) {
   }
 
   return (
-    <div className="w-full h-full bg-[#0d1117] relative overflow-hidden select-none"
+    <div className="w-full h-full bg-aero-dark relative overflow-hidden select-none"
       onWheel={onWheel} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       <svg ref={svgRef} className="w-full h-full" style={{ cursor }}
         onMouseDown={onMouseDown} onClick={onCanvasClick}

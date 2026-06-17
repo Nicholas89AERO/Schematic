@@ -4,8 +4,9 @@
  * Shows: sheet outline · inner border · zone markers · title block grid ·
  *        layer-specific placeholder scene (block diagram / schematic / harness)
  */
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import type { DrawingLayer } from '../types/project';
+import { useTheme } from '../theme/ThemeContext';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -32,9 +33,9 @@ const SHEET_MM: Record<string, [number, number]> = {
   A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210],
 };
 
-// ─── colour palette (dark aerospace UI theme) ─────────────────────────────────
+// ─── colour palettes ──────────────────────────────────────────────────────────
 
-const C = {
+const DARK_PALETTE = {
   bg:          '#131826',
   sheet:       '#1a2236',
   border:      '#2a3550',
@@ -44,7 +45,7 @@ const C = {
   titleBg:     '#111827',
   titleLine:   '#2a3550',
   titleText:   '#3d5070',
-  // layer colours
+  blockFill:   '#1c2a42',
   l1Orange:    '#f59e0b',
   l2Blue:      '#00d4ff',
   l3Green:     '#22c55e',
@@ -53,9 +54,37 @@ const C = {
   accent:      '#6366f1',
 };
 
+const LIGHT_PALETTE = {
+  bg:          '#f0f2f5',
+  sheet:       '#ffffff',
+  border:      '#c8d0d8',
+  inner:       '#fafbfc',
+  zone:        '#d0d7de',
+  zoneText:    '#656d76',
+  titleBg:     '#f6f8fa',
+  titleLine:   '#d0d7de',
+  titleText:   '#57606a',
+  blockFill:   '#eef2f7',
+  l1Orange:    '#f59e0b',
+  l2Blue:      '#0969da',
+  l3Green:     '#1a7f37',
+  dim:         '#8c959f',
+  dimText:     '#656d76',
+  accent:      '#6366f1',
+};
+
+type Palette = typeof DARK_PALETTE;
+
+const PaletteContext = createContext<Palette>(DARK_PALETTE);
+
+function usePalette(): Palette {
+  return useContext(PaletteContext);
+}
+
 // ─── arrowhead marker ─────────────────────────────────────────────────────────
 
 function Defs() {
+  const C = usePalette();
   return (
     <defs>
       <marker id="arr-bd" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
@@ -79,6 +108,7 @@ function ZoneMarkers({
   bx: number; by: number; bw: number; bh: number;
   cols: number; rows: number; markerW: number;
 }) {
+  const C = usePalette();
   const colW = bw / cols;
   const rowH = bh / rows;
   const fs = Math.min(markerW * 0.45, 5);
@@ -133,6 +163,7 @@ function TitleBlock({
   tx: number; ty: number; tw: number; th: number;
   showRevision: boolean; showApproval: boolean;
 }) {
+  const C = usePalette();
   const fs = Math.min(th * 0.12, 4);
   // Divide width: title 35% | dwg# 20% | rev 10% | scale 10% | sheet 10% | std/approval 15%
   const cols = [tw*0.35, tw*0.20, tw*0.10, tw*0.10, tw*0.10, tw*0.15];
@@ -174,6 +205,7 @@ function TitleBlock({
 
 /** L1 Block Diagram scene */
 function BlockDiagramScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number; ch:number }) {
+  const C = usePalette();
   const bw = cw * 0.14, bh = ch * 0.16;
   const boxes = [
     { x: cx + cw*0.04, y: cy + ch*0.28, lbl: 'SENSOR' },
@@ -220,7 +252,7 @@ function BlockDiagramScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number
       {boxes.map((b, i) => (
         <g key={i}>
           <rect x={b.x} y={b.y} width={bw} height={bh}
-            fill="#1c2a42" stroke={C.l1Orange} strokeWidth={0.7} rx={1.5} />
+            fill={C.blockFill} stroke={C.l1Orange} strokeWidth={0.7} rx={1.5} />
           <text x={b.x + bw/2} y={b.y + bh/2 + fs*0.35} fill="#d1a04a"
             fontSize={fs} fontFamily="monospace" textAnchor="middle">{b.lbl}</text>
         </g>
@@ -238,6 +270,7 @@ function BlockDiagramScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number
 
 /** L2 Schematic scene */
 function SchematicScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number; ch:number }) {
+  const C = usePalette();
   const fs = Math.min(cw * 0.035, 4.5);
   const wireColor = C.l2Blue;
   const symColor  = '#7dd3fc';
@@ -346,6 +379,7 @@ function SchematicScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number; c
 
 /** L3 Harness scene */
 function HarnessScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number; ch:number }) {
+  const C = usePalette();
   const fs = Math.min(cw * 0.033, 4.5);
   const trunkColor = C.l3Green;
   const wireColor  = '#86efac';
@@ -438,7 +472,7 @@ function HarnessScene({ cx, cy, cw, ch }: { cx:number; cy:number; cw:number; ch:
         const hdrs  = ['WIRE', 'FROM', 'TO', 'AWG', 'COLOUR', 'LEN'];
         return (
           <g>
-            <rect x={tx} y={ty} width={tw2} height={th2} fill="#111827" stroke={C.titleLine} strokeWidth={0.5} />
+            <rect x={tx} y={ty} width={tw2} height={th2} fill={C.titleBg} stroke={C.titleLine} strokeWidth={0.5} />
             {/* header row */}
             <rect x={tx} y={ty} width={tw2} height={th2*0.22} fill="#1a2540" />
             {(() => {
@@ -486,6 +520,8 @@ export default function TemplatePreviewSVG({
   className,
   style,
 }: TemplateProps & { className?: string; style?: React.CSSProperties }) {
+  const { theme } = useTheme();
+  const palette = theme === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
 
   // Work in a 600×424 canvas (normalised A3 landscape)
   const W = 600, H = 424;
@@ -516,6 +552,7 @@ export default function TemplatePreviewSVG({
   const cx = bx, cy = by, cw = bw, ch = bh;
 
   return (
+    <PaletteContext.Provider value={palette}>
     <svg
       viewBox={`0 0 ${W} ${H}`}
       xmlns="http://www.w3.org/2000/svg"
@@ -525,19 +562,19 @@ export default function TemplatePreviewSVG({
       <Defs />
 
       {/* Canvas background */}
-      <rect x={0} y={0} width={W} height={H} fill={C.bg} />
+      <rect x={0} y={0} width={W} height={H} fill={palette.bg} />
 
       {/* Sheet */}
-      <rect x={shX} y={shY} width={shW} height={shH} fill={C.sheet} rx={1} />
+      <rect x={shX} y={shY} width={shW} height={shH} fill={palette.sheet} rx={1} />
 
       {/* Outer border */}
       <rect x={shX + zm*0.3} y={shY + zm*0.3}
         width={shW - zm*0.6} height={shH - zm*0.6}
-        fill="none" stroke={C.border} strokeWidth={0.8} />
+        fill="none" stroke={palette.border} strokeWidth={0.8} />
 
       {/* Inner border */}
       <rect x={bx} y={by} width={bw} height={bh + tbH}
-        fill={C.inner} stroke={C.border} strokeWidth={1} />
+        fill={palette.inner} stroke={palette.border} strokeWidth={1} />
 
       {/* Zone markers */}
       {showZoneMarkers && (
@@ -560,7 +597,7 @@ export default function TemplatePreviewSVG({
 
       {/* Grid dot pattern overlay — subtle */}
       <pattern id="dots" x={cx} y={cy} width={16} height={16} patternUnits="userSpaceOnUse">
-        <circle cx={8} cy={8} r={0.5} fill={C.border} fillOpacity={0.4} />
+        <circle cx={8} cy={8} r={0.5} fill={palette.border} fillOpacity={0.4} />
       </pattern>
       <rect x={cx} y={cy} width={cw} height={ch} fill="url(#dots)" fillOpacity={0.6} />
 
@@ -568,14 +605,14 @@ export default function TemplatePreviewSVG({
       {showApprovalBlock && (
         <g>
           <rect x={bx + bw*0.75} y={by + bh} width={bw*0.25} height={tbH}
-            fill={C.titleBg} stroke={C.titleLine} strokeWidth={0.5} />
+            fill={palette.titleBg} stroke={palette.titleLine} strokeWidth={0.5} />
           {(['DRAWN','CHECKED','APPROVED'] as const).map((lbl, i) => (
             <g key={lbl}>
               <line x1={bx + bw*0.75} y1={by + bh + tbH*(0.33*(i+1))}
                 x2={bx + bw} y2={by + bh + tbH*(0.33*(i+1))}
-                stroke={C.titleLine} strokeWidth={0.3} />
+                stroke={palette.titleLine} strokeWidth={0.3} />
               <text x={bx + bw*0.755} y={by + bh + tbH*(0.33*i + 0.18)}
-                fill={C.titleText} fontSize={Math.min(tbH*0.10, 4)} fontFamily="monospace">{lbl}</text>
+                fill={palette.titleText} fontSize={Math.min(tbH*0.10, 4)} fontFamily="monospace">{lbl}</text>
             </g>
           ))}
         </g>
@@ -592,7 +629,8 @@ export default function TemplatePreviewSVG({
 
       {/* Sheet size badge */}
       <text x={shX + shW - 6} y={shY + 9}
-        fill={C.zoneText} fontSize={6} fontFamily="monospace" textAnchor="end">{sheetSize}</text>
+        fill={palette.zoneText} fontSize={6} fontFamily="monospace" textAnchor="end">{sheetSize}</text>
     </svg>
+    </PaletteContext.Provider>
   );
 }

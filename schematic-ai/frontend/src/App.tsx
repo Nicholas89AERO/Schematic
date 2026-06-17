@@ -106,6 +106,22 @@ export default function App() {
           )}
         </div>
 
+        {/* AI Panel expand strip (collapsed) */}
+        {!state.aiPanelOpen && (
+          <button
+            type="button"
+            className="w-7 shrink-0 flex flex-col items-center justify-center gap-1 bg-aero-panel border-l border-aero-border text-gray-500 hover:text-aero-accent hover:bg-aero-border/40 transition-colors"
+            onClick={() => dispatch({ type: 'TOGGLE_AI_PANEL' })}
+            aria-label="Expand AI panel"
+            title="Expand AI panel"
+          >
+            <span className="text-sm leading-none">‹</span>
+            <span className="text-[10px] font-semibold tracking-widest [writing-mode:vertical-rl] rotate-180">
+              AI
+            </span>
+          </button>
+        )}
+
         {/* AI Panel */}
         {state.aiPanelOpen && (
           <div className="w-80 shrink-0 overflow-hidden">

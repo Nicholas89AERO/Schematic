@@ -183,6 +183,19 @@ export type Action =
   | { type: 'TREE_START_RENAME'; nodeId: string }
   | { type: 'TREE_MOVE_NODE'; nodeId: string; newParentId: string };
 
+export const AI_PANEL_STORAGE_KEY = 'schematic-ai-panel';
+
+export function readAiPanelOpen(): boolean {
+  try {
+    const stored = localStorage.getItem(AI_PANEL_STORAGE_KEY);
+    if (stored === 'open') return true;
+    if (stored === 'closed') return false;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 export const initialState: AppState = {
   project: null,
   projectId: null,
@@ -196,7 +209,7 @@ export const initialState: AppState = {
   aiMessages: [],
   lastChangeset: null,
   sidebarOpen: true,
-  aiPanelOpen: true,
+  aiPanelOpen: false,
   activeAiTab: 'chat',
   activeTool: null,
   gridSnap: false,

@@ -4,20 +4,7 @@ import { useApp } from '../../state/AppContext';
 import DrawingSheet from './DrawingSheet';
 import ToolGhost from './ToolGhosts';
 import ContextMenu, { type MenuSection } from '../ContextMenu';
-
-const SIGNAL_COLORS: Record<SignalType, string> = {
-  power_dc:     '#f0883e',
-  power_ac:     '#f85149',
-  arinc429:     '#58a6ff',
-  arinc664:     '#79c0ff',
-  mil_std_1553: '#c9d1d9',
-  discrete:     '#8b949e',
-  analog:       '#3fb950',
-  rs422:        '#d2a8ff',
-  can:          '#ffa657',
-  ground:       '#3fb950',
-  unknown:      '#6e7681',
-};
+import { SIGNAL_COLORS, useCanvasPalette } from '../../theme/canvasPalette';
 
 interface Props {
   blockDiagrams: BlockDiagram[];
@@ -25,6 +12,7 @@ interface Props {
 
 export default function BlockDiagramCanvas({ blockDiagrams }: Props) {
   const { state, dispatch } = useApp();
+  const p = useCanvasPalette();
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -247,7 +235,7 @@ export default function BlockDiagramCanvas({ blockDiagrams }: Props) {
 
               {/* Signal paths */}
               {bd.signal_paths.map(sp => {
-                const color = SIGNAL_COLORS[sp.signal_type] || '#6e7681';
+                const color = SIGNAL_COLORS[sp.signal_type as SignalType] || SIGNAL_COLORS.unknown;
                 const isSelected = state.selectedElementId === sp.id;
 
                 // Build points list
@@ -324,27 +312,27 @@ export default function BlockDiagramCanvas({ blockDiagrams }: Props) {
                     <rect
                       x={x} y={y} width={w} height={h}
                       rx="4" ry="4"
-                      fill="#161b22"
-                      stroke={isSelected ? '#58a6ff' : '#30363d'}
+                      fill={p.symbolFill}
+                      stroke={isSelected ? p.accentStroke : p.symbolStroke}
                       strokeWidth={isSelected ? 2 : 1}
                     />
                     {/* Ref designator top-left */}
-                    <text x={x + 4} y={y + 12} fill="#58a6ff" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="600">
+                    <text x={x + 4} y={y + 12} fill={p.accentStroke} fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="600">
                       {lru.ref}
                     </text>
                     {/* Name centred */}
-                    <text x={cx} y={cy + 4} fill="#c9d1d9" fontSize="10" fontFamily="Inter" textAnchor="middle">
+                    <text x={cx} y={cy + 4} fill={p.symbolText} fontSize="10" fontFamily="Inter" textAnchor="middle">
                       {lru.name || lru.ref}
                     </text>
                     {/* ATA chapter bottom-right */}
                     {lru.ata_chapter && (
-                      <text x={x + w - 4} y={y + h - 4} fill="#8b949e" fontSize="8" fontFamily="Inter" textAnchor="end">
+                      <text x={x + w - 4} y={y + h - 4} fill={p.mutedText} fontSize="8" fontFamily="Inter" textAnchor="end">
                         ATA {lru.ata_chapter}
                       </text>
                     )}
                     {/* Cross-ref indicator */}
                     {lru.cross_refs.length > 0 && (
-                      <circle cx={x + w - 6} cy={y + 6} r="4" fill="#58a6ff" opacity="0.7" />
+                      <circle cx={x + w - 6} cy={y + 6} r="4" fill={p.accentStroke} opacity="0.7" />
                     )}
                   </g>
                 );
@@ -366,12 +354,12 @@ export default function BlockDiagramCanvas({ blockDiagrams }: Props) {
                 drawnBy={tb.drawn_by || ''}
               />
               <text x={BD_W/2} y={BD_H/2 - 90}
-                fill="#2e3d52" fontSize={14} fontFamily="Inter,sans-serif"
+                fill={p.emptyTitle} fontSize={14} fontFamily="Inter,sans-serif"
                 textAnchor="middle">
                 {activeTool ? `Click to place: ${activeTool.label}` : 'Blank drawing — use the Insert tab to add blocks'}
               </text>
               <text x={BD_W/2} y={BD_H/2 - 68}
-                fill="#263045" fontSize={11} fontFamily="JetBrains Mono,monospace"
+                fill={p.emptySubtitle} fontSize={11} fontFamily="JetBrains Mono,monospace"
                 textAnchor="middle">
                 or drop a DXF / PDF file into the Explorer sidebar to import
               </text>

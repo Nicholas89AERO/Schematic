@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --aero-bg: #0d1117;
+  --aero-panel: #161b22;
+  --aero-border: #30363d;
+  --aero-text: #c9d1d9;
+  --aero-text-muted: #8b949e;
+  --aero-scrollbar-track: #161b22;
+  --aero-scrollbar-thumb: #30363d;
+  --aero-scrollbar-thumb-hover: #58a6ff;
+}
+
+[data-theme="light"] {
+  --aero-bg: #f6f8fa;
+  --aero-panel: #ffffff;
+  --aero-border: #d0d7de;
+  --aero-text: #1f2328;
+  --aero-text-muted: #656d76;
+  --aero-scrollbar-track: #f6f8fa;
+  --aero-scrollbar-thumb: #d0d7de;
+  --aero-scrollbar-thumb-hover: #58a6ff;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -12,8 +34,8 @@
     margin: 0;
     padding: 0;
     font-family: 'Inter', sans-serif;
-    background-color: #0d1117;
-    color: #c9d1d9;
+    background-color: var(--aero-bg);
+    color: var(--aero-text);
   }
 
   ::-webkit-scrollbar {
@@ -21,13 +43,22 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #161b22;
+    background: var(--aero-scrollbar-track);
   }
   ::-webkit-scrollbar-thumb {
-    background: #30363d;
+    background: var(--aero-scrollbar-thumb);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #58a6ff;
+    background: var(--aero-scrollbar-thumb-hover);
   }
 }
+
+[data-theme="light"] .text-gray-100 { color: #1f2328; }
+[data-theme="light"] .text-gray-200 { color: #24292f; }
+[data-theme="light"] .text-gray-300 { color: #424a53; }
+[data-theme="light"] .text-gray-400 { color: #656d76; }
+[data-theme="light"] .text-gray-500 { color: #656d76; }
+[data-theme="light"] .text-gray-600 { color: #8c959f; }
+[data-theme="light"] .text-gray-700 { color: #8c959f; }
+[data-theme="light"] .text-white { color: #24292f; }

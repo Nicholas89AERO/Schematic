@@ -485,7 +485,10 @@ function ViewTab() {
       <Group title="Windows" layout="col">
         <SmallBtn icon="▣" label="Split View" />
         <SmallBtn icon="□" label="Full Canvas"
-          onClick={() => { dispatch({ type: 'TOGGLE_SIDEBAR' }); dispatch({ type: 'TOGGLE_AI_PANEL' }); }} />
+          onClick={() => {
+            if (state.sidebarOpen) dispatch({ type: 'TOGGLE_SIDEBAR' });
+            if (state.aiPanelOpen) dispatch({ type: 'TOGGLE_AI_PANEL' });
+          }} />
       </Group>
     </>
   );

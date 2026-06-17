@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        'aero-dark':   '#0d1117',
-        'aero-panel':  '#161b22',
-        'aero-border': '#30363d',
+        'aero-dark':   'var(--aero-bg)',
+        'aero-panel':  'var(--aero-panel)',
+        'aero-border': 'var(--aero-border)',
         'aero-accent': '#58a6ff',
         'aero-green':  '#3fb950',
         'aero-yellow': '#d29922',

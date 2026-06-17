@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { HarnessSheet, HarnessAssembly, WireRecord } from '../../types/project';
 import { useApp } from '../../state/AppContext';
 import DrawingSheet from './DrawingSheet';
+import { useCanvasPalette } from '../../theme/canvasPalette';
 
 interface Props {
   sheets: HarnessSheet[];
@@ -57,6 +58,7 @@ function HarnessTrunk({ assembly, selectedId, onWireSelect }: {
   selectedId: string | null;
   onWireSelect: (id: string) => void;
 }) {
+  const p = useCanvasPalette();
   const SVG_W = 600;
   const SVG_H = 120;
   const trunkY = 60;
@@ -68,27 +70,27 @@ function HarnessTrunk({ assembly, selectedId, onWireSelect }: {
     <svg width={SVG_W} height={SVG_H} className="block">
       {/* Trunk */}
       <line x1={trunkX0} y1={trunkY} x2={trunkX1} y2={trunkY}
-        stroke="#c9d1d9" strokeWidth="6" strokeLinecap="round" />
+        stroke={p.trunkStroke} strokeWidth="6" strokeLinecap="round" />
 
       {/* Left connector */}
-      <circle cx={trunkX0} cy={trunkY} r="10" fill="none" stroke="#58a6ff" strokeWidth="2" />
+      <circle cx={trunkX0} cy={trunkY} r="10" fill="none" stroke={p.accentStroke} strokeWidth="2" />
       {assembly.wires[0] && (
-        <text x={trunkX0} y={trunkY + 22} textAnchor="middle" fill="#8b949e" fontSize="9" fontFamily="JetBrains Mono, monospace">
+        <text x={trunkX0} y={trunkY + 22} textAnchor="middle" fill={p.mutedText} fontSize="9" fontFamily="JetBrains Mono, monospace">
           {assembly.wires[0].from_connector}
         </text>
       )}
 
       {/* Right connector */}
-      <circle cx={trunkX1} cy={trunkY} r="10" fill="none" stroke="#58a6ff" strokeWidth="2" />
+      <circle cx={trunkX1} cy={trunkY} r="10" fill="none" stroke={p.accentStroke} strokeWidth="2" />
       {assembly.wires[0] && (
-        <text x={trunkX1} y={trunkY + 22} textAnchor="middle" fill="#8b949e" fontSize="9" fontFamily="JetBrains Mono, monospace">
+        <text x={trunkX1} y={trunkY + 22} textAnchor="middle" fill={p.mutedText} fontSize="9" fontFamily="JetBrains Mono, monospace">
           {assembly.wires[0].to_connector}
         </text>
       )}
 
       {/* Assembly label */}
       <text x={(trunkX0 + trunkX1) / 2} y={trunkY - 16} textAnchor="middle"
-        fill="#c9d1d9" fontSize="11" fontFamily="Inter" fontWeight="600">
+        fill={p.symbolText} fontSize="11" fontFamily="Inter" fontWeight="600">
         {assembly.assembly_number}
         {assembly.airframe_zone && ` — ${assembly.airframe_zone}`}
       </text>
@@ -99,8 +101,8 @@ function HarnessTrunk({ assembly, selectedId, onWireSelect }: {
         return (
           <g key={bk.id}>
             <line x1={bx} y1={trunkY} x2={bx} y2={trunkY + 40}
-              stroke="#8b949e" strokeWidth="2" strokeDasharray="4,2" />
-            <text x={bx} y={trunkY + 52} textAnchor="middle" fill="#6e7681"
+              stroke={p.mutedText} strokeWidth="2" strokeDasharray="4,2" />
+            <text x={bx} y={trunkY + 52} textAnchor="middle" fill={p.mutedText}
               fontSize="8" fontFamily="JetBrains Mono, monospace">
               {bk.ref}
             </text>
@@ -111,7 +113,7 @@ function HarnessTrunk({ assembly, selectedId, onWireSelect }: {
       {/* Routing codes */}
       {assembly.routing_codes.slice(0, 3).map((code, i) => (
         <text key={code} x={trunkX0 + 20 + i * 80} y={trunkY + 14}
-          fill="#6e7681" fontSize="7" fontFamily="Inter">{code}</text>
+          fill={p.mutedText} fontSize="7" fontFamily="Inter">{code}</text>
       ))}
     </svg>
   );
@@ -122,6 +124,7 @@ const HRN_H = 1123;
 
 export default function HarnessCanvas({ sheets }: Props) {
   const { state, dispatch } = useApp();
+  const p = useCanvasPalette();
   const [activeAssemblyIdx, setActiveAssemblyIdx] = useState(0);
   const [zoom, setZoom] = useState(0.7);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -177,17 +180,17 @@ export default function HarnessCanvas({ sheets }: Props) {
 
   if (!sheet) {
     return (
-      <div className="w-full h-full bg-[#0d1117] relative overflow-hidden select-none"
+      <div className="w-full h-full bg-aero-dark relative overflow-hidden select-none"
         onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
         <svg className="w-full h-full" style={{ cursor: isPanning ? 'grabbing' : 'default' }}>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             {sheetFrame()}
             <text x={HRN_W/2} y={HRN_H/2 - 80}
-              fill="#2e3d52" fontSize={14} fontFamily="Inter,sans-serif" textAnchor="middle">
+              fill={p.emptyTitle} fontSize={14} fontFamily="Inter,sans-serif" textAnchor="middle">
               Blank harness drawing — use the Draw tab to add harness elements
             </text>
             <text x={HRN_W/2} y={HRN_H/2 - 58}
-              fill="#263045" fontSize={11} fontFamily="JetBrains Mono,monospace" textAnchor="middle">
+              fill={p.emptySubtitle} fontSize={11} fontFamily="JetBrains Mono,monospace" textAnchor="middle">
               or drop a DXF / PDF file into the Explorer sidebar to import
             </text>
           </g>
@@ -210,7 +213,7 @@ export default function HarnessCanvas({ sheets }: Props) {
 
   if (!assembly) {
     return (
-      <div className="w-full h-full bg-[#0d1117] relative overflow-hidden select-none"
+      <div className="w-full h-full bg-aero-dark relative overflow-hidden select-none"
         onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
         <svg className="w-full h-full" style={{ cursor: isPanning ? 'grabbing' : 'default' }}>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
@@ -222,7 +225,7 @@ export default function HarnessCanvas({ sheets }: Props) {
   }
 
   return (
-    <div className="w-full h-full bg-[#0d1117] flex flex-col overflow-hidden"
+    <div className="w-full h-full bg-aero-dark flex flex-col overflow-hidden"
       onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
       {/* Drawing canvas (top 55%) */}
       <div className="relative overflow-hidden" style={{ flex: '0 0 55%' }}>
