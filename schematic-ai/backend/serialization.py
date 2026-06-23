@@ -10,6 +10,7 @@ from models.project import (
     BlockDiagram,
     Component,
     ComponentType,
+    Connection,
     ConnectorDetail,
     ConnectorPin,
     ConnectorShell,
@@ -163,6 +164,12 @@ def dict_to_schematic_sheet(d: dict) -> SchematicSheet:
             cross_section_mm2=w.get("cross_section_mm2"),
             color=w.get("color"),
             voltage=w.get("voltage"),
+        ))
+    for cn in d.get("connections", []):
+        sheet.connections.append(Connection(
+            component_id=cn.get("component_id", ""),
+            pin=cn.get("pin", ""),
+            wire_id=cn.get("wire_id", ""),
         ))
     return sheet
 

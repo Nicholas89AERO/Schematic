@@ -21,6 +21,7 @@ All three layers are linked bidirectionally with full cross-reference validation
 - Python 3.12+
 - Node.js 20+
 - An Anthropic API key (for AI features)
+- **Tesseract OCR** (optional) — only needed to import scanned/raster PDFs that contain no embedded text. Install the system binary (`brew install tesseract`, `apt install tesseract-ocr`, or the Windows installer); the `pytesseract` Python package alone is not enough. Without it, text-based PDFs still import fine and scanned PDFs report a clear warning.
 
 ### Backend
 

@@ -3,9 +3,10 @@
  * Structure: thin title bar → tab row → command band (groups of buttons).
  * Collapses to tab row only on double-click of active tab.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useApp } from '../state/AppContext';
-import { exportDxf, exportPdf, exportWireList, downloadBlob } from '../api/client';
+import { exportDxf, exportPdf, exportWireList, downloadBlob, startConvert, getConvertStatus, downloadConvertedDxf } from '../api/client';
+import type { ConvertJob } from '../api/client';
 import type { DrawingLayer } from '../types/project';
 import type { ToolType } from '../state/reducer';
 
@@ -158,6 +159,10 @@ const TAB_LABELS: Record<RibbonTab, string> = {
 
 function FileTab({ onNewDrawing }: { onNewDrawing: () => void }) {
   const { state } = useApp();
+  const convertInputRef = useRef<HTMLInputElement>(null);
+  const [convertJob, setConvertJob]   = useState<ConvertJob | null>(null);
+  const [convertErr, setConvertErr]   = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleExport = async (format: 'dxf' | 'pdf' | 'wire-list') => {
     if (!state.projectId) return;
@@ -177,8 +182,46 @@ function FileTab({ onNewDrawing }: { onNewDrawing: () => void }) {
     } catch (err) { console.error('Export failed', err); }
   };
 
+  const handleConvertFile = async (file: File) => {
+    setConvertErr('');
+    setConvertJob(null);
+    if (pollRef.current) clearInterval(pollRef.current);
+    try {
+      const { job_id } = await startConvert(file);
+      setConvertJob({ job_id, status: 'queued', warnings: [], error: null });
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await getConvertStatus(job_id);
+          setConvertJob(job);
+          if (job.status === 'complete' || job.status === 'error') {
+            clearInterval(pollRef.current!);
+            if (job.status === 'complete') downloadConvertedDxf(job_id);
+          }
+        } catch { clearInterval(pollRef.current!); }
+      }, 1200);
+    } catch (err: any) {
+      setConvertErr(err?.response?.data?.detail || err?.message || 'Conversion failed');
+    }
+  };
+
+  const convertStatusLabel =
+    convertJob?.status === 'queued'     ? 'Queued…'      :
+    convertJob?.status === 'converting' ? 'Converting…'  :
+    convertJob?.status === 'complete'   ? 'Done — saved' :
+    convertJob?.status === 'error'      ? 'Error'        : '';
+
+  const convertStatusColor =
+    convertJob?.status === 'complete' ? 'text-aero-green' :
+    convertJob?.status === 'error'    ? 'text-aero-red'   : 'text-gray-400';
+
   return (
     <>
+      <input
+        ref={convertInputRef} type="file" className="hidden"
+        accept=".pdf,.dwg,.dxf"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleConvertFile(f); e.target.value = ''; }}
+      />
+
       <Group title="New">
         <LargeBtn icon="✦" label="New" sublabel="Drawing" onClick={onNewDrawing} color="text-aero-accent" />
       </Group>
@@ -186,6 +229,18 @@ function FileTab({ onNewDrawing }: { onNewDrawing: () => void }) {
       <Group title="Import">
         <LargeBtn icon="↑" label="Import" sublabel="DXF/PDF"
           onClick={() => document.getElementById('sidebar-file-upload')?.click()} />
+      </Group>
+
+      <Group title="Convert to DXF" layout="col">
+        <SmallBtn icon="⇄" label="PDF → DXF"
+          onClick={() => { setConvertErr(''); if (convertInputRef.current) { convertInputRef.current.accept = '.pdf'; convertInputRef.current.click(); } }} />
+        <SmallBtn icon="⇄" label="DWG → DXF"
+          onClick={() => { setConvertErr(''); if (convertInputRef.current) { convertInputRef.current.accept = '.dwg'; convertInputRef.current.click(); } }} />
+        {(convertJob || convertErr) && (
+          <span className={`text-[9px] leading-none px-1 truncate max-w-[6rem] ${convertStatusColor}`}>
+            {convertErr || convertStatusLabel}
+          </span>
+        )}
       </Group>
 
       <Group title="Export" layout="col">

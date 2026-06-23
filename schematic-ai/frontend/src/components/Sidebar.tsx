@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../state/AppContext';
-import { detectLayer, startParse, getParseStatus, mergeFragment, connectParseWebSocket, getProject } from '../api/client';
+import { detectLayer, startParse, getParseStatus, mergeFragment, connectParseWebSocket, getProject, startConvert, getConvertStatus, downloadConvertedDxf } from '../api/client';
+import type { ConvertJob } from '../api/client';
 import type { ParseJob, DrawingLayer } from '../types/project';
 import FolderTree, { useTreeAddDrawing } from './FolderTree';
 import NewDrawingDialog from './NewDrawingDialog';
@@ -21,6 +22,12 @@ export default function Sidebar() {
     confidence: number;
     reason: string;
   } | null>(null);
+  const [pendingConvert, setPendingConvert] = useState<{
+    file: File;
+    reason: string;
+  } | null>(null);
+  const [convertJob, setConvertJob] = useState<ConvertJob | null>(null);
+  const convertPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const addDrawingToTree = useTreeAddDrawing();
 
@@ -82,13 +89,45 @@ export default function Sidebar() {
     }
   };
 
+  const startConvertAndDownload = async (file: File) => {
+    setPendingConvert(null);
+    setConvertJob(null);
+    if (convertPollRef.current) clearInterval(convertPollRef.current);
+    try {
+      const { job_id } = await startConvert(file);
+      setConvertJob({ job_id, status: 'queued', warnings: [], error: null });
+      setActiveTab('project');
+      convertPollRef.current = setInterval(async () => {
+        try {
+          const job = await getConvertStatus(job_id);
+          setConvertJob(job);
+          if (job.status === 'complete' || job.status === 'error') {
+            clearInterval(convertPollRef.current!);
+            if (job.status === 'complete') downloadConvertedDxf(job_id);
+          }
+        } catch { clearInterval(convertPollRef.current!); }
+      }, 1200);
+    } catch (err: any) {
+      setConvertJob({ job_id: '', status: 'error', warnings: [], error: err?.response?.data?.detail || err?.message || 'Conversion failed' });
+    }
+  };
+
   const handleFile = async (file: File) => {
+    const suffix = file.name.split('.').pop()?.toLowerCase();
+
+    // DWG files: always offer convert-or-try-parse choice
+    if (suffix === 'dwg') {
+      setPendingConvert({ file, reason: 'DWG files need conversion to DXF for full fidelity. Convert now to download as DXF, or attempt direct import (may fail without ODA File Converter).' });
+      setActiveTab('project');
+      return;
+    }
+
     setUploading(true);
     try {
       const detection = await detectLayer(file);
       if (detection.requires_user_confirmation) {
         setPendingDetection({ file, ...detection });
-        setActiveTab('project');   // show confirmation UI
+        setActiveTab('project');
         return;
       }
       await uploadAndParse(file, detection.detected_layer);
@@ -256,6 +295,82 @@ export default function Sidebar() {
                   Cancel
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* DWG convert-or-import choice */}
+          {pendingConvert && (
+            <div className="mx-3 mb-3 p-3 bg-aero-orange/10 border border-aero-orange/30 rounded text-xs">
+              <div className="font-medium text-aero-orange mb-1">⇄ DWG File Detected</div>
+              <div className="text-gray-400 mb-3">{pendingConvert.reason}</div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => startConvertAndDownload(pendingConvert.file)}
+                  className="w-full py-1.5 rounded border border-aero-orange/60 text-aero-orange hover:bg-aero-orange/10 font-medium text-xs"
+                >
+                  ⇄ Convert to DXF and download
+                </button>
+                <button
+                  onClick={async () => {
+                    setPendingConvert(null);
+                    setUploading(true);
+                    try {
+                      const detection = await detectLayer(pendingConvert.file);
+                      if (detection.requires_user_confirmation) {
+                        setPendingDetection({ file: pendingConvert.file, ...detection });
+                      } else {
+                        await uploadAndParse(pendingConvert.file, detection.detected_layer);
+                      }
+                    } catch (e) { console.error(e); }
+                    finally { setUploading(false); }
+                  }}
+                  className="w-full py-1.5 rounded border border-aero-border text-gray-400 hover:text-gray-200 text-xs"
+                >
+                  ↑ Try import directly (requires ODA File Converter)
+                </button>
+                <button
+                  onClick={() => setPendingConvert(null)}
+                  className="text-gray-600 hover:text-gray-400 text-xs text-center"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Convert job progress */}
+          {convertJob && (
+            <div className={`mx-3 mb-3 p-2 rounded border text-xs ${
+              convertJob.status === 'error'    ? 'bg-aero-red/10 border-aero-red/30'    :
+              convertJob.status === 'complete' ? 'bg-aero-green/10 border-aero-green/30' :
+              'bg-aero-dark border-aero-border'
+            }`}>
+              <div className="flex items-center gap-2">
+                {convertJob.status === 'complete' ? (
+                  <span className="text-aero-green">✓</span>
+                ) : convertJob.status === 'error' ? (
+                  <span className="text-aero-red">✕</span>
+                ) : (
+                  <span className="animate-spin text-aero-orange">↻</span>
+                )}
+                <span className={
+                  convertJob.status === 'complete' ? 'text-aero-green' :
+                  convertJob.status === 'error'    ? 'text-aero-red'   : 'text-gray-400'
+                }>
+                  {convertJob.status === 'queued'     ? 'Queued…'                        :
+                   convertJob.status === 'converting' ? 'Converting to DXF…'             :
+                   convertJob.status === 'complete'   ? 'Converted — DXF downloading'    :
+                   convertJob.error || 'Conversion failed'}
+                </span>
+                {(convertJob.status === 'complete' || convertJob.status === 'error') && (
+                  <button onClick={() => setConvertJob(null)} className="ml-auto text-gray-600 hover:text-gray-300">✕</button>
+                )}
+              </div>
+              {convertJob.warnings.length > 0 && (
+                <div className="mt-1 text-gray-600 text-[10px] space-y-0.5">
+                  {convertJob.warnings.map((w, i) => <div key={i}>• {w}</div>)}
+                </div>
+              )}
             </div>
           )}
 

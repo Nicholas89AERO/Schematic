@@ -224,6 +224,37 @@ export async function deleteLibraryItem(libType: LibraryType, itemId: string) {
   return data;
 }
 
+// ── DXF Conversion ───────────────────────────────────────────────────
+
+export interface ConvertJob {
+  job_id: string;
+  status: 'queued' | 'converting' | 'complete' | 'error';
+  warnings: string[];
+  error: string | null;
+}
+
+export async function startConvert(file: File): Promise<{ job_id: string }> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const { data } = await api.post<{ job_id: string }>('/convert', fd);
+  return data;
+}
+
+export async function getConvertStatus(jobId: string): Promise<ConvertJob> {
+  const { data } = await api.get<ConvertJob>(`/convert/${jobId}/status`);
+  return data;
+}
+
+export function downloadConvertedDxf(jobId: string): void {
+  const url = `${BASE}/convert/${jobId}/download`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 // ── WebSocket helper ──────────────────────────────────────────────────
 
 export function connectParseWebSocket(

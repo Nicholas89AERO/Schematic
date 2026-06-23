@@ -1,6 +1,7 @@
 """
 SchematicAI — FastAPI backend entry point.
 
+
 Endpoints:
   Parse & Detect:      POST /detect-layer, POST /parse, GET /parse/{job_id}/status
                        GET /parse/{job_id}/model, WS /ws/{job_id}
@@ -132,8 +133,9 @@ async def _run_parse_job(job_id: str, file_path: Path, layer_hint: Optional[str]
             detected_layer, fragment, detection = parse_dxf(
                 file_path, layer_hint=hint, warnings=warnings
             )
+            fragments = [fragment]
         elif suffix == ".pdf":
-            detected_layer, fragment, detection = parse_pdf(
+            detected_layer, fragments, detection = parse_pdf(
                 file_path, layer_hint=hint, warnings=warnings
             )
         else:
@@ -141,10 +143,13 @@ async def _run_parse_job(job_id: str, file_path: Path, layer_hint: Optional[str]
 
         await _broadcast(job_id, {"event": "progress", "stage": "linking", "progress": 70})
 
+        fragment_dicts = [model_to_dict(f) for f in fragments]
+
         job["status"]       = "complete"
         job["layer"]        = detected_layer.value
         job["warnings"]     = warnings
-        job["model_fragment"] = model_to_dict(fragment)
+        job["model_fragments"] = fragment_dicts
+        job["model_fragment"]  = fragment_dicts[0] if fragment_dicts else None
         job["detection"]    = {
             "detected_layer": detection.detected_layer.value,
             "confidence":     detection.confidence,
@@ -181,12 +186,30 @@ async def healthz():
 # Parse & Detect endpoints
 # ─────────────────────────────────────────────
 
+def _dwg_supported() -> bool:
+    """True if a DWG→DXF converter is available (ODA File Converter)."""
+    import shutil
+    oda = os.getenv("ODA_CONVERTER_PATH", "")
+    if oda and Path(oda).exists():
+        return True
+    return bool(shutil.which("ODAFileConverter") or shutil.which("ODAFileConverter.exe"))
+
+
+_DWG_UNSUPPORTED_MSG = (
+    "DWG files cannot be read directly. Convert to DXF first (AutoCAD, LibreCAD, "
+    "FreeCAD, or the free ODA File Converter), or set ODA_CONVERTER_PATH in the "
+    "backend .env to enable automatic conversion."
+)
+
+
 @router.post("/detect-layer")
 async def detect_layer_endpoint(file: UploadFile = File(...)):
     """Detect which drawing layer a file belongs to without fully parsing it."""
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in (".dxf", ".dwg", ".pdf"):
         raise HTTPException(400, "Only DXF, DWG, and PDF files are supported")
+    if suffix == ".dwg" and not _dwg_supported():
+        raise HTTPException(400, _DWG_UNSUPPORTED_MSG)
 
     tmp_path = UPLOAD_DIR / f"{uuid.uuid4()}{suffix}"
     content = await file.read()
@@ -219,6 +242,8 @@ async def parse_file(
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in (".dxf", ".dwg", ".pdf"):
         raise HTTPException(400, "Only DXF, DWG, and PDF files are supported")
+    if suffix == ".dwg" and not _dwg_supported():
+        raise HTTPException(400, _DWG_UNSUPPORTED_MSG)
 
     if layer_hint and layer_hint not in [l.value for l in DrawingLayer]:
         raise HTTPException(400, f"Invalid layer_hint '{layer_hint}'")
@@ -239,6 +264,7 @@ async def parse_file(
         "layer":          None,
         "warnings":       [],
         "model_fragment": None,
+        "model_fragments": None,
         "detection":      None,
         "error":          None,
     }
@@ -464,15 +490,19 @@ async def merge_fragment(body: MergeRequest):
         project = ProjectModel(project_id=project_id or str(uuid.uuid4()))
 
     layer = DrawingLayer(body.layer)
-    fragment_dict = job["model_fragment"]
+    fragment_dicts = job.get("model_fragments")
+    if not fragment_dicts:
+        single = job.get("model_fragment")
+        fragment_dicts = [single] if single else []
 
-    # Merge fragment into project (simplified: append sheets)
-    if layer == DrawingLayer.BLOCK_DIAGRAM:
-        project.block_diagrams.append(dict_to_block_diagram(fragment_dict))
-    elif layer == DrawingLayer.SCHEMATIC:
-        project.schematic_sheets.append(dict_to_schematic_sheet(fragment_dict))
-    elif layer == DrawingLayer.HARNESS:
-        project.harness_sheets.append(dict_to_harness_sheet(fragment_dict))
+    # Merge every parsed sheet fragment into the project (one per PDF/DXF page)
+    for fragment_dict in fragment_dicts:
+        if layer == DrawingLayer.BLOCK_DIAGRAM:
+            project.block_diagrams.append(dict_to_block_diagram(fragment_dict))
+        elif layer == DrawingLayer.SCHEMATIC:
+            project.schematic_sheets.append(dict_to_schematic_sheet(fragment_dict))
+        elif layer == DrawingLayer.HARNESS:
+            project.harness_sheets.append(dict_to_harness_sheet(fragment_dict))
 
     project.parse_warnings.extend(job["warnings"])
 
@@ -510,6 +540,131 @@ async def clear_layer(project_id: str, layer: str):
     build_cross_references(project)
     await save_project(project)
     return {"project_id": project_id, "cleared_layer": layer}
+
+
+# ─────────────────────────────────────────────
+# DXF Conversion endpoints
+# ─────────────────────────────────────────────
+
+# conversion jobs: job_id → { status, filename, output_path, warnings, error }
+_convert_jobs: dict[str, dict] = {}
+CONVERT_DIR = Path("/tmp/schematic_conversions")
+CONVERT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def _run_convert_job(job_id: str, file_path: Path, original_name: str) -> None:
+    job = _convert_jobs[job_id]
+    warnings: list[str] = []
+    try:
+        job["status"] = "converting"
+        suffix = file_path.suffix.lower()
+        output_path = CONVERT_DIR / f"{job_id}.dxf"
+
+        from converters.pdf_to_dxf import convert_pdf_to_dxf, convert_dwg_to_dxf
+
+        if suffix == ".pdf":
+            convert_pdf_to_dxf(file_path, output_path, warnings)
+        elif suffix in (".dwg", ".dxf"):
+            if suffix == ".dxf":
+                import shutil
+                shutil.copy2(file_path, output_path)
+                warnings.append("File is already DXF — copied unchanged.")
+            else:
+                convert_dwg_to_dxf(file_path, output_path, warnings)
+        else:
+            raise ValueError(f"Cannot convert '{suffix}' to DXF. Supported: .pdf, .dwg")
+
+        job["status"] = "complete"
+        job["output_path"] = str(output_path)
+        job["warnings"] = warnings
+
+    except Exception as exc:
+        job["status"] = "error"
+        job["error"] = str(exc)
+        job["warnings"] = warnings
+    finally:
+        try:
+            file_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+@router.get("/convert/debug")
+async def debug_converter():
+    import sys, inspect
+    from converters.pdf_to_dxf import convert_pdf_to_dxf, _pt
+    src = inspect.getsource(_pt)
+    return {
+        "module_file": sys.modules["converters.pdf_to_dxf"].__file__,
+        "has_pt": "_pt" in src,
+        "has_try": "except" in inspect.getsource(convert_pdf_to_dxf),
+    }
+
+
+@router.post("/convert")
+async def convert_to_dxf(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+):
+    """Upload a PDF or DWG file and convert it to DXF in the background."""
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in (".pdf", ".dwg", ".dxf"):
+        raise HTTPException(400, "Only PDF, DWG, and DXF files are supported for conversion")
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, "File too large")
+
+    job_id = str(uuid.uuid4())
+    tmp_path = UPLOAD_DIR / f"{job_id}{suffix}"
+    tmp_path.write_bytes(content)
+
+    original_name = Path(file.filename or "converted").stem
+
+    _convert_jobs[job_id] = {
+        "status": "queued",
+        "filename": file.filename,
+        "output_path": None,
+        "warnings": [],
+        "error": None,
+    }
+
+    background_tasks.add_task(_run_convert_job, job_id, tmp_path, original_name)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/convert/{job_id}/status")
+async def get_convert_status(job_id: str):
+    job = _convert_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Conversion job not found")
+    return {
+        "job_id": job_id,
+        "status": job["status"],
+        "warnings": job["warnings"],
+        "error": job["error"],
+    }
+
+
+@router.get("/convert/{job_id}/download")
+async def download_converted_dxf(job_id: str):
+    """Download the converted DXF once the job is complete."""
+    job = _convert_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Conversion job not found")
+    if job["status"] != "complete":
+        raise HTTPException(409, f"Job status is '{job['status']}', not complete")
+
+    out_path = job.get("output_path")
+    if not out_path or not Path(out_path).exists():
+        raise HTTPException(500, "Converted file not found on server")
+
+    original = Path(job.get("filename") or "converted").stem
+    return FileResponse(
+        out_path,
+        media_type="application/dxf",
+        filename=f"{original}.dxf",
+    )
 
 
 # ─────────────────────────────────────────────
